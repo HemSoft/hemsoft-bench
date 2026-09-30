@@ -36,7 +36,7 @@ else{setInterval(()=>console.log(JSON.stringify({type:'message_update',assistant
       if(event.type==='progress'&&event.activity?.deltas>0&&!requested){writeFileSync(join(managed(ids[0]),'cancel'),'test cancellation');requested=true;}
     });
     const [cancelled,other]=await Promise.all([
-      run(process.execPath,[cli,'run','authority-ledger','--config',config,'--managed-run',ids[0],'--wall-seconds','15','--execute','--progress-json'],{env:{...process.env,HB_PI_ENTRY:entry},timeoutMs:30000,onStdout:b=>parser.push(b)}),
+      run(process.execPath,[cli,'run','resilient-scheduler','--config',config,'--managed-run',ids[0],'--wall-seconds','15','--execute','--progress-json'],{env:{...process.env,HB_PI_ENTRY:entry},timeoutMs:30000,onStdout:b=>parser.push(b)}),
       run(process.execPath,[cli,'self-test','--config',config,'--managed-run',ids[1],'--wall-seconds','15'],{env:{...process.env,HB_PI_ENTRY:entry},timeoutMs:30000}),
     ]);
     assert.equal(requested,true);

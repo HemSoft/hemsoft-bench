@@ -1,45 +1,51 @@
-import {test} from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {taskCases, expectedAnswers, scoreAnswers, TASK_IDS} from '../src/tasks.mjs';
-import {authorityReference} from '../src/authority-task.mjs';
+import {TASK_IDS,taskCases,expectedAnswers,scoreAnswers} from '../src/tasks.mjs';
+import {schedulerAnswers} from '../src/scheduler-task.mjs';
 
-test('authority ledger covers corrections, specificity, groups and delegation without self-support',()=>{
-  const cases=taskCases('authority-ledger');
-  assert.equal(cases.length,60);
-  assert.deepEqual(authorityReference(cases[7]).map(answer=>answer.decision),['allow','deny']);
-  assert.deepEqual(authorityReference(cases[10]).map(answer=>answer.decision),['allow','deny']);
-  assert.deepEqual(authorityReference(cases[11]).map(answer=>answer.rule),[null,null]);
-  assert.ok(cases.slice(15,25).flatMap(authorityReference).some(answer=>answer.authority.length>=3));
+const reference=fileURLToPath(new URL('../references/resilient-scheduler.py',import.meta.url));
+const runner=fileURLToPath(new URL('../tasks/resilient-scheduler/runner.py',import.meta.url));
+const starterDir=fileURLToPath(new URL('../tasks/resilient-scheduler/',import.meta.url));
+
+test('scheduler cases cover interacting recovery and dispatch rules',()=>{
+  const cases=taskCases('resilient-scheduler');
+  assert.equal(cases.length,72);
+  const text=JSON.stringify(cases);
+  for(const marker of ['checkpoint','heartbeat','workerDown','mutex','requires','effect','labels','maxAttempts'])assert.match(text,new RegExp(marker));
 });
 
-test('authority case families reject shallow and partly correct implementations',()=>{
-  const cases=taskCases('authority-ledger'), expected=expectedAnswers('authority-ledger',cases);
-  const defaultDeny=cases.map(testCase=>testCase.queries.map(()=>({decision:'deny',rule:null,authority:[],subjectPath:[]})));
-  const noDelegation=expected.map(answers=>answers.map(answer=>answer.authority.length>1?{decision:'deny',rule:null,authority:[],subjectPath:[]}:answer));
-  const latestKnowledge=cases.map(testCase=>({...testCase,queries:testCase.queries.map(query=>({...query,known:1_000_000}))}));
-  assert.deepEqual(scoreAnswers(expected,defaultDeny),{passed:14,total:60,success:false});
-  assert.deepEqual(scoreAnswers(expected,noDelegation),{passed:45,total:60,success:false});
-  assert.deepEqual(scoreAnswers(expected,expectedAnswers('authority-ledger',latestKnowledge)),{passed:43,total:60,success:false});
+test('planted shallow schedulers receive partial credit but cannot pass',()=>{
+  const cases=taskCases('resilient-scheduler'),expected=expectedAnswers('resilient-scheduler',cases);
+  for(const options of [{noAging:true},{firstFit:true},{noLeases:true},{noBackoff:true},{acceptStale:true},{noMutex:true},{noDependencyPropagation:true}]){
+    const grade=scoreAnswers(expected,schedulerAnswers(cases,options));
+    assert.ok(grade.passed>0,JSON.stringify(options));
+    assert.ok(grade.passed<grade.total,JSON.stringify(options));
+  }
 });
 
-test('independent Python authority reference agrees with every generated case',()=>{
-  const cases=taskCases('authority-ledger'), expected=cases.map(authorityReference);
-  const reference=fileURLToPath(new URL('../references/authority-ledger.py',import.meta.url));
-  const execution=spawnSync('python',['-I',reference],{input:JSON.stringify({cases}),encoding:'utf8',maxBuffer:10*1024*1024,timeout:120000});
-  assert.equal(execution.status,0,execution.stderr);
-  assert.deepEqual(JSON.parse(execution.stdout),expected);
+test('intentionally defective multi-file starter earns useful partial credit',()=>{
+  const cases=taskCases('resilient-scheduler'),expected=expectedAnswers('resilient-scheduler',cases);
+  const run=spawnSync('python',[runner],{cwd:starterDir,input:JSON.stringify({cases}),encoding:'utf8'});
+  assert.equal(run.status,0,run.stderr);
+  const grade=scoreAnswers(expected,JSON.parse(run.stdout));
+  assert.ok(grade.passed>=15&&grade.passed<=45,JSON.stringify(grade));
 });
 
-test('case generation is reproducible and scoring rejects format shortcuts and altered values',()=>{
-  assert.deepEqual(TASK_IDS,['authority-ledger']);
-  const expected=expectedAnswers('authority-ledger');
-  assert.deepEqual(taskCases('authority-ledger'),taskCases('authority-ledger'));
-  assert.equal(scoreAnswers(expected,structuredClone(expected)).success,true);
+test('independent Python scheduler reference agrees with every generated case',()=>{
+  const cases=taskCases('resilient-scheduler'),expected=expectedAnswers('resilient-scheduler',cases);
+  const run=spawnSync('python',[reference],{input:JSON.stringify({cases}),encoding:'utf8'});
+  assert.equal(run.status,0,run.stderr);
+  assert.deepEqual(scoreAnswers(expected,JSON.parse(run.stdout)),{passed:72,total:72,success:true});
+});
+
+test('case generation is reproducible and scoring rejects shortcuts',()=>{
+  assert.deepEqual(TASK_IDS,['resilient-scheduler']);
+  const a=taskCases(TASK_IDS[0]),b=taskCases(TASK_IDS[0]);
+  assert.deepEqual(a,b);
+  const expected=expectedAnswers(TASK_IDS[0],a);
   assert.equal(scoreAnswers(expected,[]).success,false);
-  assert.equal(scoreAnswers(expected,null).success,false);
-  const wrong=structuredClone(expected);wrong[0]='wrong';
-  assert.equal(scoreAnswers(expected,wrong).passed,expected.length-1);
-  assert.throws(()=>taskCases('removed-task'),/Unknown task/);
+  const altered=structuredClone(expected);altered[0].jobs[0].status='failed';
+  assert.equal(scoreAnswers(expected,altered).passed,expected.length-1);
 });

@@ -410,13 +410,37 @@ func (m *Manager) OpenImage(id, resultID string) error {
 	}
 	return m.openImage(path)
 }
-func (m *Manager) ScoreImage(id, resultID string, score int) error {
+func (m *Manager) reviewableResult(id, resultID string) (*Job, *Result, error) {
+	if j, r, _, e := m.visualResult(id, resultID); e == nil {
+		return j, r, nil
+	}
+	j := m.find(id)
+	if j == nil || !Terminal(j.Status) || j.PID != 0 {
+		return nil, nil, errors.New("finished run not found")
+	}
+	for i := range j.Results {
+		r := &j.Results[i]
+		if r.ID != resultID || r.Task != "world-clock" {
+			continue
+		}
+		for _, presentation := range r.Presentations {
+			if presentation.Kind == "webpage" {
+				if _, e := readOwnedPresentation(j, presentation.File); e != nil {
+					return nil, nil, e
+				}
+				return j, r, nil
+			}
+		}
+	}
+	return nil, nil, errors.New("visual artifact not found for this run")
+}
+func (m *Manager) ScoreVisual(id, resultID string, score int) error {
 	if score < 0 || score > 10 {
 		return errors.New("score must be 0 through 10")
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	j, r, _, e := m.visualResult(id, resultID)
+	j, r, e := m.reviewableResult(id, resultID)
 	if e != nil {
 		return e
 	}
@@ -436,6 +460,9 @@ func (m *Manager) ScoreImage(id, resultID string, score int) error {
 	*r = copy
 	j.UpdatedAt = time.Now()
 	return m.saveLocked()
+}
+func (m *Manager) ScoreImage(id, resultID string, score int) error {
+	return m.ScoreVisual(id, resultID, score)
 }
 func (m *Manager) deleteLocked(id string) error {
 	j := m.find(id)

@@ -14,7 +14,7 @@ import (
 func TestFullSuiteReportsCodeChecksAndVisualReviewSeparately(t *testing.T) {
 	m := demo()
 	j := m.state.Jobs[0]
-	j.Template.Tasks = []string{"authority-ledger", "kangaroo-bike"}
+	j.Template.Tasks = []string{"resilient-scheduler", "kangaroo-bike"}
 	j.Results = append(j.Results, bench.Result{Task: "kangaroo-bike", Status: "needs_visual_review", Artifact: &bench.VisualArtifact{File: "D:\\example\\.local\\results\\kimi-k3-bike.svg", Published: true}})
 	j.Status = "needs_visual_review"
 	text := m.runDetail(j)
@@ -52,7 +52,7 @@ func TestOpenPNGThenRateWithoutChangingCodingGrade(t *testing.T) {
 	m.client = &bench.Client{Endpoint: bench.Endpoint{URL: server.URL, Token: "test"}, HTTP: server.Client()}
 	j := m.state.Jobs[0]
 	j.Status = "needs_visual_review"
-	j.Template.Tasks = []string{"authority-ledger", "kangaroo-bike"}
+	j.Template.Tasks = []string{"resilient-scheduler", "kangaroo-bike"}
 	j.Results = append(j.Results, bench.Result{ID: "picture", Task: "kangaroo-bike", Status: "needs_visual_review", Artifact: &bench.VisualArtifact{File: "bike.svg", PNGFile: "bike.png", PNGPublicFile: "bike.png", Published: true}})
 	m.screen = runScreen
 	m.watchID = j.ID
@@ -90,6 +90,45 @@ func TestOpenPNGThenRateWithoutChangingCodingGrade(t *testing.T) {
 		t.Fatal("coding grade changed")
 	}
 }
+func TestWorldClockOpensHTMLThenAcceptsSeparateRating(t *testing.T) {
+	calls := []string{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls = append(calls, r.URL.Path)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+	m := demo()
+	m.client = &bench.Client{Endpoint: bench.Endpoint{URL: server.URL, Token: "test"}, HTTP: server.Client()}
+	j := m.state.Jobs[0]
+	j.Status = "needs_visual_review"
+	j.Template.Tasks = []string{"resilient-scheduler", "world-clock"}
+	j.Results = append(j.Results, bench.Result{ID: "clock", Task: "world-clock", Status: "needs_visual_review", Presentations: []bench.PresentationArtifact{{Kind: "webpage", File: "world-clock.html"}}})
+	m.screen, m.watchID = runScreen, j.ID
+	m.refreshDetail()
+	if _, kind := reviewableVisual(j); kind != "webpage" {
+		t.Fatal("world clock is not reviewable")
+	}
+	m, cmd := press(m, "enter")
+	if cmd == nil {
+		t.Fatal("did not open HTML report")
+	}
+	next, _ := m.Update(cmd())
+	m = next.(Model)
+	if !m.ratingPrompt || m.ratingResultID != "clock" {
+		t.Fatal("world-clock rating prompt missing")
+	}
+	m, _ = press(m, "9")
+	m, cmd = press(m, "enter")
+	next, _ = m.Update(cmd())
+	m = next.(Model)
+	if m.ratingPrompt || j.Results[len(j.Results)-1].HumanScore == nil || *j.Results[len(j.Results)-1].HumanScore != 9 {
+		t.Fatal("world-clock rating was not saved")
+	}
+	if len(calls) != 2 || calls[0] != "/results/open-html" || !strings.HasSuffix(calls[1], "/score-image") {
+		t.Fatalf("unexpected calls: %v", calls)
+	}
+}
+
 func TestRatingCanBeSkippedAndOlderSVGOnlyRunsHaveNoOpenAction(t *testing.T) {
 	m := demo()
 	m.screen = runScreen
@@ -123,7 +162,7 @@ func TestCollidingCandidatePNGIsStillSelectable(t *testing.T) {
 func TestSavedHumanRatingStaysSeparateFromCodingScore(t *testing.T) {
 	m := demo()
 	j := m.state.Jobs[0]
-	j.Template.Tasks = []string{"authority-ledger", "kangaroo-bike"}
+	j.Template.Tasks = []string{"resilient-scheduler", "kangaroo-bike"}
 	score := 0
 	j.Results = append(j.Results, bench.Result{ID: "picture", Task: "kangaroo-bike", Status: "needs_visual_review", HumanScore: &score, Artifact: &bench.VisualArtifact{File: "bike.svg", PNGFile: "bike.png", PNGPublicFile: "bike.png", Published: true}})
 	j.Status = "needs_visual_review"
@@ -152,7 +191,7 @@ func TestSavedHumanRatingStaysSeparateFromCodingScore(t *testing.T) {
 func TestUnratedOrFailedRunsKeepTheirRealStatus(t *testing.T) {
 	m := demo()
 	j := m.state.Jobs[0]
-	j.Template.Tasks = []string{"authority-ledger", "kangaroo-bike"}
+	j.Template.Tasks = []string{"resilient-scheduler", "kangaroo-bike"}
 	j.Status = "needs_visual_review"
 	r := bench.Result{Task: "kangaroo-bike", Status: "needs_visual_review"}
 	j.Results = append(j.Results, r)
@@ -174,7 +213,7 @@ func TestUnratedOrFailedRunsKeepTheirRealStatus(t *testing.T) {
 func TestVisualReviewRunCanReportCompleteObservedUsage(t *testing.T) {
 	m := demo()
 	j := m.state.Jobs[0]
-	j.Template.Tasks = []string{"authority-ledger", "kangaroo-bike"}
+	j.Template.Tasks = []string{"resilient-scheduler", "kangaroo-bike"}
 	v := 0.05
 	j.Results[0].Metrics = &bench.Metrics{Estimated: &v, Reported: &v, UsageComplete: true}
 	j.Results = append(j.Results, bench.Result{Task: "kangaroo-bike", Status: "needs_visual_review", Metrics: &bench.Metrics{Estimated: &v, Reported: &v, UsageComplete: true}})

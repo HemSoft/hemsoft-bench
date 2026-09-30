@@ -62,10 +62,19 @@ export class Sandbox {
     if (result.failure) throw new Error(`Command ${result.failure}.\n${bounded}`);
     return `${bounded}${Buffer.byteLength(text)>50000?'\n[Output truncated to last 50 KB]':''}\n[exit code ${result.code}]`;
   }
+  async schedulerBundle() {
+    const output=await checked('docker',['exec',this.name,'timeout','5','python','-I','-c',
+      "import os,stat,json; out={}; paths=['scheduler/model.py','scheduler/engine.py','scheduler/replay.py'];\nfor p in paths:\n q='/workspace/'+p; fd=os.open(q,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK); s=os.fstat(fd); assert stat.S_ISREG(s.st_mode) and 0<s.st_size<=524288, 'Expected regular '+p+' <=512 KiB'; data=os.read(fd,524289); os.close(fd); assert len(data)<=524288; out[p]=data.decode('utf-8','strict')\nprint(json.dumps(out,separators=(',',':')))"],{maxBytes:2*1024*1024});
+    return JSON.parse(output);
+  }
   async submission() {
     // Extract only bytes from a regular non-symlink file. Never extract an untrusted tar archive on the host.
     return checked('docker', ['exec',this.name,'timeout','5','python','-I','-c',
       "import os,stat,sys; p='/workspace/solution.py'; fd=os.open(p,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK); s=os.fstat(fd); assert stat.S_ISREG(s.st_mode) and s.st_size<=1048576, 'Expected regular solution.py <=1 MiB'; f=os.fdopen(fd,'rb'); data=f.read(1048577); f.close(); assert len(data)<=1048576, 'Submission exceeds 1 MiB'; sys.stdout.buffer.write(data)"], {maxBytes:2*1024*1024});
+  }
+  async webArtifact() {
+    return checked('docker', ['exec',this.name,'timeout','5','python','-I','-c',
+      "import os,stat,sys; p='/workspace/world-clock.html'; fd=os.open(p,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK); s=os.fstat(fd); assert stat.S_ISREG(s.st_mode) and 0<s.st_size<=2097152, 'Expected regular world-clock.html <=2 MiB'; f=os.fdopen(fd,'rb'); data=f.read(2097153); f.close(); assert len(data)<=2097152, 'HTML exceeds 2 MiB'; data.decode('utf-8','strict'); sys.stdout.buffer.write(data)"], {maxBytes:3*1024*1024});
   }
   async svgArtifact() {
     // Read only this file, without following links or waiting on FIFOs. XML and

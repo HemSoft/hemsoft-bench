@@ -1,26 +1,26 @@
-  HEMSOFT BENCH                                                             
-                                                                            
-  START A NEW RUN                                                           
-  Choose one model. Enter starts it immediately.                            
-                                                                            
-  > kimi-k3 / max                                                           
-    gpt-5.6-sol / high                                                      
-                                                                            
-  Provider: opencode-go                                                     
-  Tasks: authority-ledger, kangaroo-bike                                    
-  2 tests in this run. Authority: 30m; other tests: 45m. 40 requests each.  
-  $5.00 per test; $10.00 estimated total.                                   
-  Not a hard billing cap. Results stay in history.                          
-  Transient errors: up to 2 retries per response.                           
-                                                                            
-                                                                            
-                                                                            
-                                                                            
-                                                                            
-                                                                            
-                                                                            
-                                                                            
-                                                                            
-                                                                            
-                                                                            
-  Up/Down select  Enter START  Esc back  q exit                             
+  HEMSOFT BENCH                                        
+                                                       
+  START A NEW RUN                                      
+  Choose one model. Enter starts it immediately.       
+                                                       
+  > kimi-k3 / max                                      
+    gpt-5.6-sol / high                                 
+                                                       
+  Provider: opencode-go                                
+  Tasks: resilient-scheduler, kangaroo-bike            
+  2 tests in this run. Limit each: 45m / 40 requests.  
+  $5.00 per test; $10.00 estimated total.              
+  Not a hard billing cap. Results stay in history.     
+  Transient errors: up to 2 retries per response.      
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+  Up/Down select  Enter START  Esc back  q exit        

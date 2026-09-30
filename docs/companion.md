@@ -12,17 +12,17 @@ Open [bench.exe](D:/github/HemSoft/hemsoft-bench/bench.exe). Use the arrow keys 
 
 Choose **Start a new run**, highlight one model, and press Enter. That Enter starts provider calls immediately and opens the run's progress. There is no review screen or second confirmation.
 
-The model picker shows its thinking level, tasks, and estimated allowance before you start. It uses the saved model settings. Current defaults are Authority Ledger followed by the kangaroo-bike SVG test, one run of each, 40 requests, and $5 estimated per test. Authority Ledger agent work stops after 30 minutes even though the visual task keeps the configured 45-minute limit. The estimated total allowance is $10 for both, not a hard billing cap. Authority grading has no task-specific time cutoff and remains operator-cancellable.
+The model picker shows its thinking level, tasks, and estimated allowance before you start. It uses the saved model settings. Current defaults are Resilient Scheduler, Kangaroo Bike, and World Clock: one run of each, 30 minutes, 40 requests, and $5 estimated per test. The estimated total allowance is $15, not a hard billing cap. Grading and visual checks remain operator-cancellable.
 
 A selection always starts exactly one model, even if older saved configuration includes model suites. Model settings, credentials, and provider authentication remain unchanged. The simple dashboard does not expose suite or configuration editors.
 
 ## Compare results
 
-Choose **View Results** for the latest result from every provider, model, and thinking setup. Authority shows the latest Authority Ledger score out of 60. The visual column shows review state or your saved rating. Configured models remain visible before their first run. Enter opens the selected model's latest run without starting work.
+Choose **View Results** for the latest result from every provider, model, and thinking setup. Scheduler shows the latest Resilient Scheduler score out of 72. Bike and Clock show review state or saved ratings. Configured models remain visible before their first run. Enter opens the selected model's latest run without starting work.
 
-Press `v` from **View Results** to regenerate and open [the local HTML report](D:/github/HemSoft/hemsoft-bench/.local/reports/results.html). It shows the same result matrix followed by every retained kangaroo-bike image in a responsive gallery. Use Grid or List to change the gallery layout and **Open large** to inspect an image.
+Press `v` from **View Results** to regenerate and open [the local HTML report](D:/github/HemSoft/hemsoft-bench/.local/reports/results.html). It shows the same result matrix followed by retained bike images and live World Clock pages in a responsive gallery. Use Grid or List to change the gallery layout and **Open large** to inspect an artifact.
 
-The report is a static local file. It embeds verified images, contains no manager credentials, and needs no local web server. Future visual tasks can add owned raster images or self-contained HTML pages. HTML candidates render in network-blocked sandbox frames and cannot access the report's origin.
+The report is a static local file. It embeds verified images and owned page source, contains no manager credentials, and needs no local web server. HTML candidates render in network-blocked sandbox frames and cannot access the report's origin.
 
 ## Watch progress and results
 
@@ -30,7 +30,7 @@ The progress screen identifies the model and current task. Above the task name, 
 
 The same screen changes to results when execution ends. The comparison section shows the selected run first, followed by up to ten recent completed runs. It includes passed coding tests, graded checks, summed test time, outcome, and cost. All older runs remain available through **View previous runs**.
 
-The result headline separates coding tests passed from hidden checks. A test means one complete task run, not one hidden grading case. Authority Ledger has 60 private cases. It combines recorded-time corrections, effective-time intervals, nested membership, delegated authority, policy specificity, and canonical proofs. The bike task saves an SVG for human review and never increases the coding score. Authority Ledger passes only when all its cases pass.
+The result headline separates coding tests passed from hidden checks. A test means one complete task run, not one hidden grading scenario. Resilient Scheduler has 72 private scenarios covering leases, retry backoff, resource fit, priority aging, dependencies, cancellation, mutexes, stale attempt tokens, side effects, and checkpoint recovery. Bike and Clock remain human-reviewed and never increase the coding score. Scheduler passes only when every scenario passes.
 
 The check pass rate is descriptive, not a calibrated capability score. Missing task grades leave the overall score incomplete, and startup failures are not scored.
 
@@ -46,7 +46,7 @@ Provider failures remain failures even when an interrupted solution passes its s
 | Model picker | Up/Down selects one model; Enter starts it |
 | View Results | Up/Down selects; Enter opens the latest run; `v` opens the HTML report |
 | Previous runs | Up/Down selects; Enter opens; `d` requests deletion |
-| Progress/results | PgUp/PgDn scrolls; `d` requests deletion of a finished run |
+| Progress/results | Enter or `v` opens the next visual for review; PgUp/PgDn scrolls; `d` requests deletion |
 | Active run | `c` asks to cancel; `y` confirms cancellation |
 | Any screen | Esc goes back; `q` disconnects |
 
@@ -74,9 +74,11 @@ Deletion removes the entire owned job directory, including logs, saved code, res
 
 Pi owns provider credentials. Candidate tools run in disposable Docker containers; grading uses a fresh container without feeding hidden results back to the model.
 
-The `kangaroo-bike` visual task runs after Authority Ledger when you start a model from the existing picker. You can run it alone from the CLI without repeating the coding task. It saves a validated SVG and a bounded PNG side by side in `.local/results/`. The PNG comes from a separate pinned renderer image in an offline Docker container; the candidate image and grading image do not change. Existing named exports are preserved; a collision on either filename retains both candidates under the run directory, where the PNG can still be opened and rated from that run's results screen.
+The visual tasks run after Resilient Scheduler and can also run alone from the CLI. Kangaroo Bike saves a validated SVG and bounded PNG in `.local/results/`; the PNG comes from a separate pinned visual-check image in an offline Docker container. Existing named exports are preserved, and collisions retain both candidates under the run directory.
 
-On a run's results screen, select **Open PNG** with Enter or `v`. Windows opens it using the default PNG app. Return to the terminal to enter a whole-number rating from 0 to 10 and press Enter, or press Esc to skip. The rating stays with the run and can be changed by opening the image again. It is not an automatic art score or a coding grade. If validation or rendering fails, the SVG stays under the run directory with a visible error, and the harness does not publish a misleading pair. The validator accepts local gradients and passive blur/drop-shadow filters, but still rejects scripts, external resources, and linked artifacts.
+World Clock saves an owned `world-clock.html`. Static checks reject external resources and active embedding. Offline Chromium then confirms current hand angles, second-hand movement, four visible location hooks, no horizontal overflow, and a primary face that fits 1200×800 and 390×844 viewports. Passing those checks does not judge artistic quality. The report runs the page with scripts allowed but network, forms, frames, navigation, plugins, and report-origin access blocked.
+
+On a run's results screen, Enter or `v` opens the next unrated visual. Windows opens bike PNGs in the default app; clock pages open in the generated HTML report. Return to the terminal to enter a whole-number rating from 0 to 10 and press Enter, or press Esc to skip. Ratings stay with each result and can be changed by opening it again. They are not automatic art scores or coding grades.
 
 Codex calls use SSE inside the benchmark project. All models allow up to two agent-level retries per consecutive transient failure sequence, using the same conversation and candidate sandbox. The original time, request and observed estimated-cost budgets still apply. Provider-level retries remain disabled; quota/authentication failures are not retried. Progress and task details show scheduled retries, and recovered interruptions leave usage/cost incomplete even if the task finishes successfully. Changed execution policies remain separate in CLI reports; TUI comparisons warn that settings/retries may differ.
 

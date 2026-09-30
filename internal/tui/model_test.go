@@ -23,17 +23,17 @@ func demo() Model {
 	m.connected = true
 	m.polling = false
 	m.now = time.Date(2026, 9, 23, 6, 0, 0, 0, time.UTC)
-	setup := bench.Template{Name: "GPT", Models: []bench.Model{{Provider: "openai-codex", Model: "gpt-5.6-sol", Thinking: "high"}}, Tasks: []string{"authority-ledger", "kangaroo-bike"}, Repeat: 1, WallSeconds: 2700, MaxRequests: 40, MaxEstimatedUSD: 5, Concurrency: 1}
+	setup := bench.Template{Name: "GPT", Models: []bench.Model{{Provider: "openai-codex", Model: "gpt-5.6-sol", Thinking: "high"}}, Tasks: []string{"resilient-scheduler", "kangaroo-bike"}, Repeat: 1, WallSeconds: 2700, MaxRequests: 40, MaxEstimatedUSD: 5, Concurrency: 1}
 	kimi := setup
 	kimi.Name = "Kimi"
 	kimi.Models = []bench.Model{{Provider: "opencode-go", Model: "kimi-k3", Thinking: "max"}}
 	start := m.now.Add(-3 * time.Minute)
 	cost := 0.125
-	result := bench.Result{Task: "authority-ledger", Status: "passed", Grade: &bench.Grade{Passed: 60, Total: 60, Success: true}, Elapsed: 169, Metrics: &bench.Metrics{Estimated: &cost, Reported: &cost}}
+	result := bench.Result{Task: "resilient-scheduler", Status: "passed", Grade: &bench.Grade{Passed: 60, Total: 60, Success: true}, Elapsed: 169, Metrics: &bench.Metrics{Estimated: &cost, Reported: &cost}}
 	oldTemplate := kimi
-	oldTemplate.Tasks = []string{"authority-ledger"}
+	oldTemplate.Tasks = []string{"resilient-scheduler"}
 	old := &bench.Job{ID: "old", BatchID: "old-batch", Model: kimi.Models[0], Template: oldTemplate, Status: "passed", StartedAt: &start, FinishedAt: &m.now, Results: []bench.Result{result}, RunDir: ".local/managed-runs/old"}
-	active := &bench.Job{ID: "active", BatchID: "active-batch", Model: setup.Models[0], Template: setup, Status: "running", Task: "authority-ledger", Stage: "Model running", StartedAt: &start, UpdatedAt: m.now, Activity: &bench.Activity{Phase: "Reasoning stream", Elapsed: 25, ToolsCompleted: 4, Writes: 1}, RunDir: ".local/managed-runs/active"}
+	active := &bench.Job{ID: "active", BatchID: "active-batch", Model: setup.Models[0], Template: setup, Status: "running", Task: "resilient-scheduler", Stage: "Model running", StartedAt: &start, UpdatedAt: m.now, Activity: &bench.Activity{Phase: "Reasoning stream", Elapsed: 25, ToolsCompleted: 4, Writes: 1}, RunDir: ".local/managed-runs/active"}
 	m.state = bench.State{Version: 1, Limit: 2, Templates: []bench.Template{kimi, setup}, Jobs: []*bench.Job{old, active}}
 	m.resize()
 	return m
@@ -57,7 +57,7 @@ func TestTwoTaskRunStartsWithoutExtraNavigation(t *testing.T) {
 	m := demo()
 	m, _ = press(m, "enter")
 	view := ansi.Strip(m.View().Content)
-	if !strings.Contains(view, "authority-ledger, kangaroo-bike") || !strings.Contains(view, "2 tests") || !strings.Contains(view, "$10.00 estimated total") {
+	if !strings.Contains(view, "resilient-scheduler, kangaroo-bike") || !strings.Contains(view, "2 tests") || !strings.Contains(view, "$10.00 estimated total") {
 		t.Fatal("model picker did not show both tasks and their budget: " + view)
 	}
 	if len(m.modelSetups()) != 2 {
@@ -97,10 +97,10 @@ func TestHomeHasResultsBetweenStartAndHistory(t *testing.T) {
 
 func TestResultsTableShowsLatestTestOutcomePerModel(t *testing.T) {
 	m := demo()
-	m.state.Jobs[1].Results = append(m.state.Jobs[1].Results, bench.Result{Task: "authority-ledger", Status: "failed", Grade: &bench.Grade{Passed: 37, Total: 60}})
+	m.state.Jobs[1].Results = append(m.state.Jobs[1].Results, bench.Result{Task: "resilient-scheduler", Status: "failed", Grade: &bench.Grade{Passed: 37, Total: 60}})
 	m.screen = resultsScreen
 	view := ansi.Strip(m.resultsView())
-	for _, want := range []string{"RESULTS BY MODEL", "MODEL / THINKING", "AUTHORITY", "gpt-5.6-sol / high", "kimi-k3 / max", "60/60", "37/60"} {
+	for _, want := range []string{"RESULTS BY MODEL", "MODEL / THINKING", "SCHED", "gpt-5.6-sol / high", "kimi-k3 / max", "60/60", "37/60"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("missing %q in results table:\n%s", want, view)
 		}
@@ -195,7 +195,7 @@ func TestCompletionShowsResultsAndComparisonWithoutMoreInput(t *testing.T) {
 	m.detail.ScrollDown(4)
 	finished := *m.state.Jobs[1]
 	finished.Status = "passed"
-	finished.Results = append(finished.Results, bench.Result{Task: "authority-ledger", Status: "passed", Grade: &bench.Grade{Passed: 60, Total: 60, Success: true}})
+	finished.Results = append(finished.Results, bench.Result{Task: "resilient-scheduler", Status: "passed", Grade: &bench.Grade{Passed: 60, Total: 60, Success: true}})
 	s := m.state
 	s.Jobs = append([]*bench.Job{}, m.state.Jobs...)
 	s.Jobs[1] = &finished
@@ -259,9 +259,9 @@ func TestRecoveredGradesAreSeparateInComparison(t *testing.T) {
 	m := demo()
 	j := m.state.Jobs[1]
 	j.Status = "provider_error"
-	j.Results = []bench.Result{{Task: "authority-ledger", Status: "provider_error", Recovery: &bench.Recovery{State: "graded", Grade: &bench.Grade{Passed: 60, Total: 60, Success: true}}}}
+	j.Results = []bench.Result{{Task: "resilient-scheduler", Status: "provider_error", Recovery: &bench.Recovery{State: "graded", Grade: &bench.Grade{Passed: 60, Total: 60, Success: true}}}}
 	text := strings.Join(m.comparison(j), "\n")
-	if !strings.Contains(text, "0/1 coding tests passed; SVG needs review | not graded") {
+	if !strings.Contains(text, "0/1 coding tests passed; 0/1 visuals rated | not graded") {
 		t.Fatal("recovery counted as a completed pass: " + text)
 	}
 }
@@ -321,7 +321,7 @@ func TestLayoutsAndSnapshots(t *testing.T) {
 				}
 				if screen == "completed" {
 					m.state.Jobs[1].Status = "passed"
-					m.state.Jobs[1].Results = []bench.Result{{Task: "authority-ledger", Status: "passed", Grade: &bench.Grade{Passed: 60, Total: 60, Success: true}, Elapsed: 169}}
+					m.state.Jobs[1].Results = []bench.Result{{Task: "resilient-scheduler", Status: "passed", Grade: &bench.Grade{Passed: 60, Total: 60, Success: true}, Elapsed: 169}}
 				}
 				if screen == "visual-results" || screen == "visual-rated" {
 					j := m.state.Jobs[1]
@@ -334,7 +334,7 @@ func TestLayoutsAndSnapshots(t *testing.T) {
 						visual.Artifact.PNGPublicFile = visual.Artifact.PNGFile
 						m.success = "Rating saved."
 					}
-					j.Results = []bench.Result{{Task: "authority-ledger", Status: "passed", Grade: &bench.Grade{Passed: 60, Total: 60, Success: true}}, visual}
+					j.Results = []bench.Result{{Task: "resilient-scheduler", Status: "passed", Grade: &bench.Grade{Passed: 60, Total: 60, Success: true}}, visual}
 				}
 				if screen == "interrupted" {
 					m.screen = runScreen
@@ -342,7 +342,7 @@ func TestLayoutsAndSnapshots(t *testing.T) {
 					j := m.state.Jobs[1]
 					j.Status = "provider_error"
 					j.Error = "WebSocket error"
-					j.Results = []bench.Result{{Task: "authority-ledger", Status: "provider_error", Recovery: &bench.Recovery{State: "graded", Grade: &bench.Grade{Passed: 60, Total: 60, Success: true}}}}
+					j.Results = []bench.Result{{Task: "resilient-scheduler", Status: "provider_error", Recovery: &bench.Recovery{State: "graded", Grade: &bench.Grade{Passed: 60, Total: 60, Success: true}}}}
 				}
 				if screen == "delete" {
 					m.screen = historyScreen

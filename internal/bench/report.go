@@ -28,8 +28,9 @@ type reportRow struct {
 	Provider  string
 	Model     string
 	Thinking  string
-	Authority reportCell
-	Visual    reportCell
+	Scheduler reportCell
+	Bike      reportCell
+	Clock     reportCell
 	Latest    reportCell
 	Date      string
 }
@@ -53,7 +54,7 @@ type reportPage struct {
 	Rows            []reportRow
 	Media           []reportMedia
 	SetupCount      int
-	AuthorityTested int
+	SchedulerTested int
 	VisualCount     int
 }
 
@@ -173,9 +174,15 @@ func reportRatedRun(job *Job) (string, bool) {
 	if job.Status != "needs_visual_review" {
 		return "", false
 	}
+	expected := 0
+	for _, task := range job.Template.Tasks {
+		if task == "kangaroo-bike" || task == "world-clock" {
+			expected += job.Template.Repeat
+		}
+	}
 	count, total := 0, 0
 	for _, result := range job.Results {
-		if result.Task != "kangaroo-bike" {
+		if result.Task != "kangaroo-bike" && result.Task != "world-clock" {
 			continue
 		}
 		total++
@@ -183,15 +190,18 @@ func reportRatedRun(job *Job) (string, bool) {
 			count++
 		}
 	}
+	if total != expected || expected == 0 {
+		return "", false
+	}
 	if total == 1 && count == 1 {
 		for _, result := range job.Results {
-			if result.Task == "kangaroo-bike" {
+			if result.Task == "kangaroo-bike" || result.Task == "world-clock" {
 				return fmt.Sprintf("Reviewed %d / 10", *result.HumanScore), true
 			}
 		}
 	}
 	if total > 1 && count == total {
-		return fmt.Sprintf("%d images reviewed", count), true
+		return fmt.Sprintf("%d visuals reviewed", count), true
 	}
 	return "", false
 }
@@ -215,13 +225,14 @@ func (m *Manager) reportPageLocked() reportPage {
 	sources := reportSourceRows(state)
 	page := reportPage{Generated: time.Now().In(reportEastern).Format("Jan 02, 2006 · 3:04 PM MST"), SetupCount: len(sources)}
 	for _, source := range sources {
-		authorityResult, hasAuthority := source.tasks["authority-ledger"]
-		visualResult, hasVisual := source.tasks["kangaroo-bike"]
-		if hasAuthority && authorityResult.Grade != nil {
-			page.AuthorityTested++
+		schedulerResult, hasScheduler := source.tasks["resilient-scheduler"]
+		bikeResult, hasBike := source.tasks["kangaroo-bike"]
+		clockResult, hasClock := source.tasks["world-clock"]
+		if hasScheduler && schedulerResult.Grade != nil {
+			page.SchedulerTested++
 		}
-		authority, _, _ := reportCodingCell(authorityResult, hasAuthority)
-		page.Rows = append(page.Rows, reportRow{Provider: source.model.Provider, Model: source.model.Model, Thinking: source.model.Thinking, Authority: authority, Visual: reportVisualCell(visualResult, hasVisual), Latest: reportRunCell(source.latest), Date: reportDate(source.latest)})
+		scheduler, _, _ := reportCodingCell(schedulerResult, hasScheduler)
+		page.Rows = append(page.Rows, reportRow{Provider: source.model.Provider, Model: source.model.Model, Thinking: source.model.Thinking, Scheduler: scheduler, Bike: reportVisualCell(bikeResult, hasBike), Clock: reportVisualCell(clockResult, hasClock), Latest: reportRunCell(source.latest), Date: reportDate(source.latest)})
 	}
 	page.Media = m.reportMediaLocked(state)
 	page.VisualCount = len(page.Media)
@@ -261,7 +272,8 @@ func (m *Manager) reportPresentation(job *Job, result Result, artifact Presentat
 	if label == "" {
 		label = strings.ReplaceAll(result.Task, "-", " ")
 	}
-	item := reportMedia{Kind: artifact.Kind, Label: label, Model: job.Model.Model, Provider: job.Model.Provider, Thinking: job.Model.Thinking, Status: reportStatus(result.Status), Tone: reportTone(result.Status), Date: reportDate(job)}
+	status := reportVisualCell(result, true)
+	item := reportMedia{Kind: artifact.Kind, Label: label, Model: job.Model.Model, Provider: job.Model.Provider, Thinking: job.Model.Thinking, Status: status.Text, Tone: status.Tone, Date: reportDate(job)}
 	data, err := readOwnedPresentation(job, artifact.File)
 	if err != nil {
 		item.Note = "Preview unavailable: " + err.Error()

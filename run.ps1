@@ -1,12 +1,13 @@
 [CmdletBinding()]
 param(
-    [string]$Config = (Join-Path $PSScriptRoot 'run.json'),
+    [string]$Config,
     [switch]$Execute,
     [switch]$KeepHistory
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrWhiteSpace($Config)) { $Config = Join-Path $PSScriptRoot 'run.json' }
 $cli = Join-Path $PSScriptRoot 'src/cli.mjs'
 $results = [System.Collections.Generic.List[object]]::new()
 $clock = [System.Diagnostics.Stopwatch]::StartNew()
@@ -79,7 +80,7 @@ try {
     $tasks = @($settings.tasks)
     if ($tasks.Count -eq 0) { throw 'Configure at least one task.' }
     foreach ($task in $tasks) {
-        if ($task -notin @('authority-ledger', 'kangaroo-bike')) {
+        if ($task -notin @('resilient-scheduler', 'kangaroo-bike', 'world-clock')) {
             throw "Unknown task: $task"
         }
     }
@@ -98,9 +99,6 @@ try {
     Write-Host "Model: $($settings.model.provider)/$($settings.model.model), thinking $($settings.model.thinking)" -ForegroundColor Cyan
     Write-Host "Tasks: $($tasks -join ', '), $($settings.repeat) attempt(s) each"
     Write-Host "Per attempt: $($settings.wallSeconds)s configured, $($settings.maxRequests) requests, USD $($settings.maxEstimatedUsd) estimated limit"
-    if ($tasks -contains 'authority-ledger' -and [int]$settings.wallSeconds -gt 1800) {
-        Write-Host 'Authority Ledger agent work is capped at 1800s. Its grading phase has no task-specific time cutoff.'
-    }
     if (-not $Execute) {
         Write-Host 'Plan only. Add -Execute to check readiness and make model calls.'
         return

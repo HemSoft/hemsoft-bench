@@ -52,7 +52,8 @@ func (t Template) Validate() error {
 	}
 	seen := map[string]bool{}
 	for _, task := range t.Tasks {
-		if (task != "authority-ledger" && task != "kangaroo-bike") || seen[task] {
+		known := task == "resilient-scheduler" || task == "kangaroo-bike" || task == "world-clock" || task == "authority-ledger"
+		if !known || seen[task] {
 			return errors.New("tasks must be unique known benchmark tasks")
 		}
 		seen[task] = true

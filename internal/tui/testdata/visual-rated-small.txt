@@ -13,6 +13,6 @@
   Settings and retries may differ; not a ranking.      
                                                        
   gpt-5.6-sol / high  [this run]  5/10                 
-    1/1 coding tests passed; SVG reviewed | 60/60 gra  
+    1/1 coding tests passed; 1/1 visuals rated | 60/6  
   Rating saved.                                        
   PgUp/PgDn scroll  d delete  Esc home  q exit         

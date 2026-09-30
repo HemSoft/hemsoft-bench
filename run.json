@@ -4,9 +4,9 @@
     "model": "moonshotai/kimi-k3",
     "thinking": "max"
   },
-  "tasks": ["authority-ledger", "kangaroo-bike"],
+  "tasks": ["resilient-scheduler", "kangaroo-bike", "world-clock"],
   "repeat": 1,
-  "wallSeconds": 2700,
+  "wallSeconds": 1800,
   "maxRequests": 40,
   "maxEstimatedUsd": 5
 }

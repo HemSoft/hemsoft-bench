@@ -34,7 +34,7 @@ func TestResultsReportIncludesResultsVisualsAndSandboxedWebpages(t *testing.T) {
 		t.Fatal(err)
 	}
 	html := string(data)
-	for _, want := range []string{"Model results, in full view.", "kimi-k3", "8 / 10", "data:image/png;base64,", "Website concept", `sandbox="allow-scripts"`, "Content-Security-Policy", "Candidate page", "Grid", "List"} {
+	for _, want := range []string{"Model results, in full view.", "kimi-k3", "8 / 10", "data:image/png;base64,", "Website concept", `sandbox="allow-scripts"`, "Content-Security-Policy", "Candidate page", "Resilient Scheduler", "World Clock", "Grid", "List"} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("report missing %q", want)
 		}

@@ -12,7 +12,7 @@
   Settings and retries may differ; not a ranking.                                                                       
                                                                                                                         
   gpt-5.6-sol / high  [this run]  passed                                                                                
-    1/1 coding tests passed; SVG needs review | 60/60 graded checks | 2m 49s                                            
+    1/1 coding tests passed; 0/1 visuals rated | 60/60 graded checks | 2m 49s                                           
     Sep 23 1:57 AM EDT | cost unknown                                                                                   
                                                                                                                         
   kimi-k3 / max  passed                                                                                                 
@@ -23,7 +23,7 @@
   1 / 2 tests                                                                                                           
     █████████████████████ ░░░░░░░░░░░░░░░░░░░░                                                                          
                                                                                                                         
-  authority-ledger  passed                                                                                              
+  resilient-scheduler  passed                                                                                           
     60/60 checks | 2m 49s                                                                                               
     cost unknown                                                                                                        
                                                                                                                         

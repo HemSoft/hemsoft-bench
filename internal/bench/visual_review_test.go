@@ -134,6 +134,43 @@ func TestCollidingRunCanStillOpenAndRateItsOwnedPNG(t *testing.T) {
 	}
 }
 
+func TestWorldClockRatingRequiresOwnedWebpageAndPersists(t *testing.T) {
+	m := manager(t)
+	v := template()
+	v.Tasks = []string{"world-clock"}
+	if _, err := m.Enqueue(v); err != nil {
+		t.Fatal(err)
+	}
+	j := m.Snapshot().Jobs[0]
+	attempt := filepath.Join(j.RunDir, "runs", "clock")
+	page := filepath.Join(attempt, "world-clock.html")
+	if err := os.MkdirAll(attempt, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(page, []byte("<!doctype html><title>Clock</title>"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(attempt, "result.json")
+	result := Result{ID: "clock", Task: "world-clock", Status: "needs_visual_review", Path: path, Presentations: []PresentationArtifact{{Kind: "webpage", File: page}}}
+	if err := AtomicJSON(path, result); err != nil {
+		t.Fatal(err)
+	}
+	m.update(j.ID, true, func(job *Job) { job.Status = "needs_visual_review"; job.Results = []Result{result} })
+	if err := m.ScoreVisual(j.ID, "clock", 9); err != nil {
+		t.Fatal(err)
+	}
+	saved := m.Snapshot().Jobs[0].Results[0]
+	if saved.HumanScore == nil || *saved.HumanScore != 9 || saved.Grade != nil {
+		t.Fatalf("unexpected rating: %+v", saved)
+	}
+	if err := os.Remove(page); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.ScoreVisual(j.ID, "clock", 4); err == nil {
+		t.Fatal("rated missing webpage")
+	}
+}
+
 func TestVisualReviewAPIRejectsMissingScore(t *testing.T) {
 	m, j, _, _ := visualReviewFixture(t)
 	h := Handler(m, "private-test-token")

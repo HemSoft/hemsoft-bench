@@ -2,12 +2,12 @@
                                                                    
   RESULTS BY MODEL                                                 
   Latest result for each test.                                     
-  Authority is passed/total. Bike is review or rating.             
+  Scheduler is passed/total; visuals show review or rating.        
                                                                    
-  MODEL / THINKING                   AUTHORITY BIKE                
-  ---------------------------------- --------- --------            
-  > gpt-5.6-sol / high               -         -                   
-    kimi-k3 / max                    60/60     -                   
+  MODEL / THINKING                   SCHED     BIKE    CLOCK       
+  ---------------------------------- --------- ------- -------     
+  > gpt-5.6-sol / high               -         -       -           
+    kimi-k3 / max                    60/60     -       -           
                                                                    
                                                                    
                                                                    

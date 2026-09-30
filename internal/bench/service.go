@@ -178,7 +178,7 @@ func Handler(m *Manager, token string) http.Handler {
 				e = m.Cancel(parts[0])
 			} else if parts[1] == "delete" {
 				e = m.Delete(parts[0])
-			} else if parts[1] == "open-image" || parts[1] == "score-image" {
+			} else if parts[1] == "open-image" || parts[1] == "score-image" || parts[1] == "score-visual" {
 				var v struct {
 					ResultID string `json:"resultId"`
 					Score    *int   `json:"score,omitempty"`
@@ -187,11 +187,11 @@ func Handler(m *Manager, token string) http.Handler {
 					if parts[1] == "open-image" {
 						e = m.OpenImage(parts[0], v.ResultID)
 					}
-					if parts[1] == "score-image" {
+					if parts[1] == "score-image" || parts[1] == "score-visual" {
 						if v.Score == nil {
 							e = errors.New("score is required")
 						} else {
-							e = m.ScoreImage(parts[0], v.ResultID, *v.Score)
+							e = m.ScoreVisual(parts[0], v.ResultID, *v.Score)
 						}
 					}
 				}

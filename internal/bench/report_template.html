@@ -159,7 +159,7 @@ dialog::backdrop { background: rgba(9, 18, 15, .78); backdrop-filter: blur(5px);
       <p class="intro">A current comparison of coding checks and visual work. Results stay descriptive: provider settings, retries, and environments can differ between runs.</p>
     </div>
     <div class="summary">
-      <p><strong>{{.SetupCount}} model setups</strong><br>{{.AuthorityTested}} authority results · {{.VisualCount}} visual artifacts</p>
+      <p><strong>{{.SetupCount}} model setups</strong><br>{{.SchedulerTested}} scheduler results · {{.VisualCount}} visual artifacts</p>
       <p class="generated">Generated {{.Generated}}</p>
     </div>
   </div>
@@ -172,13 +172,14 @@ dialog::backdrop { background: rgba(9, 18, 15, .78); backdrop-filter: blur(5px);
     </div>
     <div class="matrix-wrap">
       <table>
-        <thead><tr><th scope="col">Model setup</th><th scope="col">Authority Ledger</th><th scope="col">Visual</th><th scope="col">Latest run</th></tr></thead>
+        <thead><tr><th scope="col">Model setup</th><th scope="col">Resilient Scheduler</th><th scope="col">Kangaroo Bike</th><th scope="col">World Clock</th><th scope="col">Latest run</th></tr></thead>
         <tbody>
           {{range .Rows}}
           <tr>
             <td><span class="model-name">{{.Model}}</span><span class="model-meta">{{.Provider}} · {{.Thinking}} thinking</span></td>
-            <td data-label="Authority Ledger"><span class="badge {{.Authority.Tone}}">{{.Authority.Text}}</span></td>
-            <td data-label="Visual"><span class="badge {{.Visual.Tone}}">{{.Visual.Text}}</span></td>
+            <td data-label="Resilient Scheduler"><span class="badge {{.Scheduler.Tone}}">{{.Scheduler.Text}}</span></td>
+            <td data-label="Kangaroo Bike"><span class="badge {{.Bike.Tone}}">{{.Bike.Text}}</span></td>
+            <td data-label="World Clock"><span class="badge {{.Clock.Tone}}">{{.Clock.Text}}</span></td>
             <td data-label="Latest run"><span class="badge {{.Latest.Tone}}">{{.Latest.Text}}</span>{{if .Date}}<span class="run-date">{{.Date}}</span>{{end}}</td>
           </tr>
           {{end}}

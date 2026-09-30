@@ -6,7 +6,7 @@
   "engines": { "node": ">=22" },
   "scripts": {
     "test": "node --test test/*.test.mjs",
-    "test:integration": "node --test test/*.integration.mjs",
+    "test:integration": "node --test --test-concurrency=1 test/*.integration.mjs",
     "bench": "node src/cli.mjs",
     "check": "node --check src/cli.mjs && node --test test/*.test.mjs"
   }

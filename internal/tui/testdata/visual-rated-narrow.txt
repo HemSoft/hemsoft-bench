@@ -13,7 +13,7 @@
   Settings and retries may differ; not a ranking.                               
                                                                                 
   gpt-5.6-sol / high  [this run]  5/10                                          
-    1/1 coding tests passed; SVG reviewed | 60/60 graded checks | 0m 00s        
+    1/1 coding tests passed; 1/1 visuals rated | 60/60 graded checks | 0m 00s   
     Sep 23 1:57 AM EDT | cost unknown                                           
                                                                                 
   kimi-k3 / max  passed                                                         

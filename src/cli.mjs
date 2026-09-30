@@ -10,8 +10,10 @@ import { Sandbox } from './sandbox.mjs';
 import { Activity, eventDecoder, formatActivity, formatCompactActivity } from './activity.mjs';
 import { acquireRunLock, validateRunLock, releaseRunLock } from './retention.mjs';
 import { STARTER_SOURCE, RECOVERABLE_STATUSES, recoverSubmission } from './submission.mjs';
-import { AUTHORITY_TASK_ID, TASK_IDS, TASK_VERSION, taskCases, expectedAnswers, scoreAnswers } from './tasks.mjs';
+import { SCHEDULER_TASK_ID, TASK_IDS, TASK_VERSION, taskCases, expectedAnswers, scoreAnswers } from './tasks.mjs';
+import {SCHEDULER_FILES,schedulerStarter,schedulerBundleHash,gradeScheduler,saveSchedulerBundle} from './scheduler-task.mjs';
 import { VISUAL_TASK_ID, validateSvg, rasterizeSvg, publishSvg } from './visual.mjs';
+import { WEB_VISUAL_TASK_ID, validateWorldClock, saveWorldClock } from './web-visual.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const baseLocal = join(root,'.local');
@@ -20,6 +22,7 @@ let managedRunId;
 let executionContext = {mode:'legacy',concurrency:1};
 const modelFile = join(root,'models.local.json');
 const abort = new AbortController();
+const VISUAL_TASK_IDS=new Set([VISUAL_TASK_ID,WEB_VISUAL_TASK_ID]);
 process.on('SIGINT',()=>abort.abort());
 process.on('SIGTERM',()=>abort.abort());
 const hash = text => createHash('sha256').update(text).digest('hex');
@@ -52,43 +55,48 @@ async function rendererId() {
   if(!/^sha256:[a-f0-9]{64}$/.test(lock.rendererImage??''))throw new Error('Run setup to pin the local SVG renderer image before starting a visual test.');
   await checked('docker',['image','inspect',lock.rendererImage,'--format','{{.Id}}']);
   await checked('docker',['run','--rm','--pull=never','--network=none','--read-only',lock.rendererImage,'rsvg-convert','--version'],{timeoutMs:12000,maxBytes:1024});
+  await checked('docker',['run','--rm','--pull=never','--network=none','--read-only',lock.rendererImage,'chromium','--version'],{timeoutMs:12000,maxBytes:1024});
+  await checked('docker',['run','--rm','--pull=never','--network=none','--read-only',lock.rendererImage,'chromedriver','--version'],{timeoutMs:12000,maxBytes:1024});
+  await checked('docker',['run','--rm','--pull=never','--network=none','--read-only',lock.rendererImage,'/usr/bin/python3','-c','import selenium'],{timeoutMs:12000,maxBytes:1024});
   return lock.rendererImage;
 }
 async function seed(sandbox,task) {
   await sandbox.file('write',{path:'TASK.md',content:await readFile(join(root,'tasks',task,'TASK.md'),'utf8')});
-  if(task===AUTHORITY_TASK_ID) {
-    const starter=await readFile(join(root,'tasks',task,'starter.py'),'utf8');
-    await sandbox.file('write',{path:'solution.py',content:starter});
+  if(task===SCHEDULER_TASK_ID) {
+    const starter=await schedulerStarter();
+    for(const path of SCHEDULER_FILES)await sandbox.file('write',{path,content:starter[path]});
+    await sandbox.file('write',{path:'scheduler/__init__.py',content:'from .engine import Engine\n'});
     await sandbox.file('write',{path:'public_tests.py',content:await readFile(join(root,'tasks',task,'public_tests.py'),'utf8')});
     return starter;
   }
-  if(task!==VISUAL_TASK_ID) {
+  if(!VISUAL_TASK_IDS.has(task)) {
     await sandbox.file('write',{path:'solution.py',content:STARTER_SOURCE});
     return STARTER_SOURCE;
   }
   return null;
 }
 async function grade(image,task,source,signal) {
+  if(task===SCHEDULER_TASK_ID)return gradeScheduler(image,source,taskCases(task));
   const sandbox=await new Sandbox(image).start();
   try {
     const cases=taskCases(task), expected=expectedAnswers(task,cases);
-    const execution=await sandbox.evaluate(source,{cases},{unbounded:task===AUTHORITY_TASK_ID,signal});
+    const execution=await sandbox.evaluate(source,{cases},{signal});
     if(execution.code!==0||execution.failure)return {passed:0,total:cases.length,success:false,executionError:execution.failure??`exit ${execution.code}`,stderr:execution.stderr.slice(0,4000)};
     let actual;try{actual=JSON.parse(execution.stdout);}catch{return {passed:0,total:cases.length,success:false,formatError:'Submission did not return valid JSON.'};}
     return scoreAnswers(expected,actual);
   } finally {await sandbox.dispose();}
 }
 async function fingerprints(task) {
-  const files=['src/core.mjs','src/submission.mjs','src/activity.mjs','src/process.mjs','src/transport-diagnostics.mjs','src/sandbox.mjs','src/cli.mjs','src/tasks.mjs','src/authority-task.mjs','src/visual.mjs','extensions/sandbox-tools.ts',`tasks/${task}/TASK.md`];
-  if(task===AUTHORITY_TASK_ID)files.push(`tasks/${task}/starter.py`,`tasks/${task}/public_tests.py`);
+  const files=['src/core.mjs','src/submission.mjs','src/activity.mjs','src/process.mjs','src/transport-diagnostics.mjs','src/sandbox.mjs','src/cli.mjs','src/tasks.mjs','src/scheduler-task.mjs','src/visual.mjs','src/web-visual.mjs','extensions/sandbox-tools.ts',`tasks/${task}/TASK.md`];
+  if(task===SCHEDULER_TASK_ID)files.push(...SCHEDULER_FILES.map(path=>`tasks/${task}/${path}`),`tasks/${task}/runner.py`,`tasks/${task}/public_tests.py`);
   const hashes={};for(const f of files)hashes[f]=hash(await readFile(join(root,f)));
-  return {files:hashes,systemPrompt:hash(SYSTEM_PROMPT),caseSet:task===VISUAL_TASK_ID?null:hash(JSON.stringify(taskCases(task)))};
+  return {files:hashes,systemPrompt:hash(SYSTEM_PROMPT),caseSet:VISUAL_TASK_IDS.has(task)?null:hash(JSON.stringify(taskCases(task)))};
 }
 async function executeTrial(model,task,limits,{selfTest=false,progress=false,progressJson=false,attempt=1,repeat=1}={}) {
   const image=await imageId();
   // Refuse an unavailable renderer before any paid request, not after the SVG
   // has already been produced.
-  const renderer=task===VISUAL_TASK_ID && !selfTest?await rendererId():null;
+  const renderer=VISUAL_TASK_IDS.has(task) && !selfTest?await rendererId():null;
   const id=randomUUID();
   const directory=join(local,'runs',id);
   const cwd=await mkdtemp(join(tmpdir(),'hb-'));
@@ -175,6 +183,24 @@ async function executeTrial(model,task,limits,{selfTest=false,progress=false,pro
     if(state.status==='ready' && result.metrics.providerErrors.length){result.status='provider_error';result.error=result.metrics.providerErrors.join('; ');return result;}
     if(execution.code!==0||state.status!=='ready')throw new Error('Pi failed or sandbox extension did not initialize.');
     if(!result.metrics.completed){result.status='incomplete';return result;}
+    if(task===WEB_VISUAL_TASK_ID){
+      let html;
+      try{html=Buffer.from(await sandbox.webArtifact(),'utf8');}
+      catch{result.status='missing_or_invalid_submission';result.error='No regular world-clock.html within the 2 MiB limit.';return result;}
+      try{await validateWorldClock(image,renderer,html);}
+      catch(error){
+        const candidate=join(directory,'world-clock.html');
+        await writeFile(candidate,html,{flag:'wx',mode:0o600});
+        result.status='missing_or_invalid_submission';
+        result.error=`World clock is not valid, self-contained and live. Candidate saved at ${candidate}. ${String(error.message).slice(0,500)}`;
+        return result;
+      }
+      const saved=await saveWorldClock(html,directory);
+      result.presentations=[saved.presentation];
+      result.submissionHash=saved.sha256;
+      result.status='needs_visual_review';
+      return result;
+    }
     if(task===VISUAL_TASK_ID){
       let svg;
       try{svg=Buffer.from(await sandbox.svgArtifact(),'utf8');}
@@ -199,10 +225,10 @@ async function executeTrial(model,task,limits,{selfTest=false,progress=false,pro
       return result;
     }
     let source;
-    try {source=await sandbox.submission();}
+    try {source=task===SCHEDULER_TASK_ID?await sandbox.schedulerBundle():await sandbox.submission();}
     catch {result.status='missing_or_invalid_submission';return result;}
-    await writeFile(join(directory,'submission.py'),source);
-    result.submissionHash=hash(source);
+    result.submissionHash=task===SCHEDULER_TASK_ID?await saveSchedulerBundle(source,directory):hash(source);
+    if(task!==SCHEDULER_TASK_ID)await writeFile(join(directory,'submission.py'),source);
     setStage('Grading submission');
     await sandbox.dispose(); // No candidate processes survive into grading.
     result.grade=await grade(image,task,source,abort.signal);
@@ -212,11 +238,24 @@ async function executeTrial(model,task,limits,{selfTest=false,progress=false,pro
   finally {
     if(heartbeat)clearInterval(heartbeat);
     if(displayTimer)clearInterval(displayTimer);
-    if(!selfTest && task!==VISUAL_TASK_ID && candidateStarted && !result.submissionHash && RECOVERABLE_STATUSES.has(result.status)) {
+    if(!selfTest && !VISUAL_TASK_IDS.has(task) && candidateStarted && !result.submissionHash && RECOVERABLE_STATUSES.has(result.status)) {
       stage='Capturing and grading interrupted solution';
       if(display)announce();
       const gradingSignal=abort.signal.aborted?undefined:abort.signal;
-      result.recovery=await recoverSubmission(sandbox,directory,source=>grade(image,task,source,gradingSignal),result.status,starterSource??STARTER_SOURCE);
+      if(task===SCHEDULER_TASK_ID){
+        result.recovery={kind:'interrupted_snapshot',reason:result.status,state:'capture_failed'};
+        try{
+          const bundle=await sandbox.schedulerBundle();
+          if(schedulerBundleHash(bundle)===schedulerBundleHash(starterSource))result.recovery.state='unchanged_starter';
+          else{
+            result.recovery.sourceHash=await saveSchedulerBundle(bundle,directory);
+            result.recovery.sourceFile='submission/scheduler';
+            await sandbox.dispose();
+            try{result.recovery.grade=await grade(image,task,bundle,gradingSignal);result.recovery.state='graded';}
+            catch(error){result.recovery.state='grading_failed';result.recovery.error=error.message;}
+          }
+        }catch(error){result.recovery.error=error.message;}
+      }else result.recovery=await recoverSubmission(sandbox,directory,source=>grade(image,task,source,gradingSignal),result.status,starterSource??STARTER_SOURCE);
       if(result.recovery.state==='cleanup_failed') {
         result.terminationStatus=result.status;
         result.status='cleanup_error';
@@ -248,7 +287,7 @@ async function main() {
     if(abort.signal.aborted)throw new Error('Managed run cancelled before launch.');
   }
   if(command==='help') {
-    console.log(`HemSoft Bench\n\n  node src/cli.mjs setup\n  node src/cli.mjs doctor\n  node src/cli.mjs models [--search TEXT]\n  node src/cli.mjs add NAME --provider PROVIDER --model EXACT_ID --thinking LEVEL\n  node src/cli.mjs tasks\n  node src/cli.mjs report\n  node src/cli.mjs verify\n  node src/cli.mjs self-test NAME\n  node src/cli.mjs self-test --config PATH\n  node src/cli.mjs run TASK --config PATH [--repeat 3] [--execute]\n  node src/cli.mjs run NAME TASK [--repeat 3] [--execute]\n\nRun without --execute only prints a plan. self-test and verify make no model calls.\nLimits: --wall-seconds 2700 --max-requests 40 --max-estimated-usd 5\nAdd --progress for live response/tool activity on stderr, or --progress-json for typed progress records on stdout.\nCost limit uses provider estimates, is checked between calls, and is NOT a billing guarantee.`);return;
+    console.log(`HemSoft Bench\n\n  node src/cli.mjs setup\n  node src/cli.mjs doctor\n  node src/cli.mjs models [--search TEXT]\n  node src/cli.mjs add NAME --provider PROVIDER --model EXACT_ID --thinking LEVEL\n  node src/cli.mjs tasks\n  node src/cli.mjs report\n  node src/cli.mjs verify\n  node src/cli.mjs self-test NAME\n  node src/cli.mjs self-test --config PATH\n  node src/cli.mjs run TASK --config PATH [--repeat 3] [--execute]\n  node src/cli.mjs run NAME TASK [--repeat 3] [--execute]\n\nRun without --execute only prints a plan. self-test and verify make no model calls.\nLimits: --wall-seconds 1800 --max-requests 40 --max-estimated-usd 5\nAdd --progress for live response/tool activity on stderr, or --progress-json for typed progress records on stdout.\nCost limit uses provider estimates, is checked between calls, and is NOT a billing guarantee.`);return;
   }
   if(command==='setup') {
     await mkdir(local,{recursive:true});
@@ -281,7 +320,7 @@ async function main() {
     }
     console.log(JSON.stringify({note:'Full passes count against all attempts. Status counts expose infrastructure and budget failures. Changed configurations remain separate. Costs are estimates, not subscription invoices.',groups:summarizeRuns(results)},null,2));return;
   }
-  if(command==='tasks') {console.log([...TASK_IDS.map(id=>`${id} v${TASK_VERSION} (${taskCases(id).length} hidden cases; difficulty uncalibrated)`),`${VISUAL_TASK_ID} v1 (visual artifact for human review; no automatic score)`].join('\n'));return;}
+  if(command==='tasks') {console.log([...TASK_IDS.map(id=>`${id} v${TASK_VERSION} (${taskCases(id).length} hidden cases; difficulty uncalibrated)`),`${VISUAL_TASK_ID} v1 (visual artifact for human review; no automatic score)`,`${WEB_VISUAL_TASK_ID} v1 (live webpage for human review; no automatic score)`].join('\n'));return;}
   if(command==='add') {
     const [name]=positional;
     if(!/^[a-z0-9][a-z0-9-]{0,63}$/.test(name??''))throw new Error('Use a short lowercase model alias.');
@@ -293,12 +332,17 @@ async function main() {
   if(command==='verify') {
     const image=await imageId();
     for(const task of TASK_IDS) {
-      const source=await readFile(join(root,'references',task+'.py'),'utf8');
-      const result=await grade(image,task,source);
+      const cases=taskCases(task),expected=expectedAnswers(task,cases),box=await new Sandbox(image).start();
+      let result;
+      try{
+        await box.file('write',{path:'reference.py',content:await readFile(join(root,'references',task+'.py'),'utf8')});
+        const execution=await checked('docker',['exec','-i',box.name,'timeout','45','python','-I','/workspace/reference.py'],{input:JSON.stringify({cases}),timeoutMs:55000,maxBytes:8*1024*1024});
+        result=scoreAnswers(expected,JSON.parse(execution));
+      }finally{await box.dispose();}
       if(!result.success)throw new Error(`Reference failed for ${task}: ${JSON.stringify(result)}`);
-      const bad=await grade(image,task,'print("[]")');
-      if(bad.success)throw new Error('Grader accepted invalid submission');
-      console.log(`${task}: independent Python reference passed ${result.total} cases; empty answer rejected.`);
+      const bad=await grade(image,task,await schedulerStarter());
+      if(bad.success)throw new Error('Grader accepted the intentionally defective starter');
+      console.log(`${task}: independent Python reference passed ${result.total} cases; defective starter rejected (${bad.passed}/${bad.total}).`);
     }
     return;
   }
@@ -307,10 +351,10 @@ async function main() {
     const model=validateModel(flags.config?config.model:config.models[positional[0]]);
     if(managedRunId)executionContext={mode:'managed',concurrency:positive(config.executionContext?.concurrency,1,8)};
     const task=command==='self-test'?TASK_IDS[0]:positional[flags.config?0:1];
-    if(!TASK_IDS.includes(task)&&task!==VISUAL_TASK_ID)throw new Error('Choose a task from the tasks command.');
+    if(!TASK_IDS.includes(task)&&!VISUAL_TASK_IDS.has(task))throw new Error('Choose a task from the tasks command.');
     const repeat=positive(flags.repeat,command==='self-test'?1:3,20);
-    const requestedWall=positive(flags['wall-seconds'],command==='self-test'?60:2700,2700);
-    const limits={wallSeconds:task===AUTHORITY_TASK_ID?Math.min(requestedWall,1800):requestedWall,maxRequests:positive(flags['max-requests'],40,200),maxEstimatedUsd:Number(flags['max-estimated-usd']??5)};
+    const requestedWall=positive(flags['wall-seconds'],command==='self-test'?60:1800,2700);
+    const limits={wallSeconds:requestedWall,maxRequests:positive(flags['max-requests'],40,200),maxEstimatedUsd:Number(flags['max-estimated-usd']??5)};
     if(!Number.isFinite(limits.maxEstimatedUsd)||limits.maxEstimatedUsd<=0||limits.maxEstimatedUsd>100)throw new Error('Estimated cost limit must be >0 and <=100 USD.');
     if(command==='run'&&!flags.execute){console.log(JSON.stringify({mode:'plan-only',model,task,repeat,limits,note:'Add --execute to make model calls. Per-trial limits; inference may consume credits or subscription quota.'},null,2));return;}
     const lease=flags.invocation?await validateRunLock(local,flags.invocation):await acquireRunLock(local);

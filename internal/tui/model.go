@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -33,7 +32,10 @@ type imageOpenedMsg struct {
 	JobID, ResultID string
 	Err             error
 }
-type resultsHTMLOpenedMsg struct{ Err error }
+type resultsHTMLOpenedMsg struct {
+	JobID, ResultID string
+	Err             error
+}
 type imageScoredMsg struct {
 	JobID, ResultID string
 	Score           int
@@ -113,9 +115,13 @@ func (m Model) openImage(jobID, resultID string) tea.Cmd {
 		return imageOpenedMsg{jobID, resultID, m.client.Call("POST", "/jobs/"+jobID+"/open-image", map[string]string{"resultId": resultID}, nil)}
 	}
 }
-func (m Model) openResultsHTML() tea.Cmd {
+func (m Model) openResultsHTML(ids ...string) tea.Cmd {
+	jobID, resultID := "", ""
+	if len(ids) == 2 {
+		jobID, resultID = ids[0], ids[1]
+	}
 	return func() tea.Msg {
-		return resultsHTMLOpenedMsg{m.client.Call("POST", "/results/open-html", nil, nil)}
+		return resultsHTMLOpenedMsg{jobID, resultID, m.client.Call("POST", "/results/open-html", nil, nil)}
 	}
 }
 func (m Model) scoreImage(score int) tea.Cmd {
@@ -124,15 +130,42 @@ func (m Model) scoreImage(score int) tea.Cmd {
 		return imageScoredMsg{jobID, resultID, score, m.client.Call("POST", "/jobs/"+jobID+"/score-image", map[string]any{"resultId": resultID, "score": score}, nil)}
 	}
 }
-func reviewableImage(j *bench.Job) *bench.Result {
+func visualTask(task string) bool { return task == "kangaroo-bike" || task == "world-clock" }
+func reviewableVisual(j *bench.Job) (*bench.Result, string) {
 	if j == nil || !bench.Terminal(j.Status) {
-		return nil
+		return nil, ""
 	}
+	var rated *bench.Result
+	var ratedKind string
 	for i := len(j.Results) - 1; i >= 0; i-- {
 		r := &j.Results[i]
+		kind := ""
 		if r.Task == "kangaroo-bike" && r.ID != "" && r.Artifact != nil && (r.Artifact.PNGPublicFile != "" || r.Artifact.PNGOwnedFile != "") {
-			return r
+			kind = "image"
 		}
+		if r.Task == "world-clock" && r.ID != "" {
+			for _, presentation := range r.Presentations {
+				if presentation.Kind == "webpage" {
+					kind = "webpage"
+					break
+				}
+			}
+		}
+		if kind != "" {
+			if r.HumanScore == nil {
+				return r, kind
+			}
+			if rated == nil {
+				rated, ratedKind = r, kind
+			}
+		}
+	}
+	return rated, ratedKind
+}
+func reviewableImage(j *bench.Job) *bench.Result {
+	r, kind := reviewableVisual(j)
+	if kind == "image" {
+		return r
 	}
 	return nil
 }
@@ -291,6 +324,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.err = ""
 		m.success = "Opened HTML results."
+		if v.JobID != "" && v.ResultID != "" {
+			m.ratingJobID, m.ratingResultID = v.JobID, v.ResultID
+			m.ratingInput = ""
+			m.ratingPrompt = true
+		}
 		return m, nil
 	case imageScoredMsg:
 		m.busy = false
@@ -474,10 +512,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch key {
 			case "enter", "v":
 				if j := m.watchedJob(); j != nil && m.connected {
-					if image := reviewableImage(j); image != nil {
+					if visual, kind := reviewableVisual(j); visual != nil {
 						m.busy = true
 						m.err = ""
-						return m, m.openImage(j.ID, image.ID)
+						if kind == "webpage" {
+							return m, m.openResultsHTML(j.ID, visual.ID)
+						}
+						return m, m.openImage(j.ID, visual.ID)
 					}
 				}
 			case "pgdown":
@@ -529,19 +570,25 @@ func statusStyle(s string) lip.Style {
 	}
 }
 func ratedTaskStatus(r bench.Result) (string, bool) {
-	if r.Task == "kangaroo-bike" && r.Status == "needs_visual_review" && r.HumanScore != nil && *r.HumanScore >= 0 && *r.HumanScore <= 10 {
+	if visualTask(r.Task) && r.Status == "needs_visual_review" && r.HumanScore != nil && *r.HumanScore >= 0 && *r.HumanScore <= 10 {
 		return fmt.Sprintf("%d/10", *r.HumanScore), true
 	}
 	return clean(r.Status), false
 }
 func ratedRunStatus(j *bench.Job) (string, bool) {
-	if j.Status != "needs_visual_review" || j.Template.Repeat < 1 || !slices.Contains(j.Template.Tasks, "kangaroo-bike") {
+	visuals := 0
+	for _, task := range j.Template.Tasks {
+		if visualTask(task) {
+			visuals++
+		}
+	}
+	if j.Status != "needs_visual_review" || j.Template.Repeat < 1 || visuals == 0 {
 		return clean(j.Status), false
 	}
 	rated := 0
 	score := 0
 	for _, r := range j.Results {
-		if r.Task != "kangaroo-bike" {
+		if !visualTask(r.Task) {
 			continue
 		}
 		if _, ok := ratedTaskStatus(r); !ok {
@@ -550,7 +597,7 @@ func ratedRunStatus(j *bench.Job) (string, bool) {
 		rated++
 		score = *r.HumanScore
 	}
-	if rated != j.Template.Repeat {
+	if rated != j.Template.Repeat*visuals {
 		return clean(j.Status), false
 	}
 	if rated == 1 {
@@ -611,12 +658,7 @@ func (m Model) homeView() string {
 	lines = append(lines, fmt.Sprintf("%d recorded runs. %d still active.", len(m.state.Jobs), active))
 	return strings.Join(lines, "\n")
 }
-func taskWallSeconds(task string, configured int) int {
-	if task == "authority-ledger" {
-		return min(configured, 1800)
-	}
-	return configured
-}
+func taskWallSeconds(_ string, configured int) int { return configured }
 func (m Model) modelsView() string {
 	lines := []string{accent.Render("START A NEW RUN"), "Choose one model. Enter starts it immediately.", ""}
 	options := m.modelSetups()
@@ -635,9 +677,6 @@ func (m Model) modelsView() string {
 	}
 	t := options[m.modelCursor]
 	limitText := fmt.Sprintf("Limit each: %dm / %d requests.", t.WallSeconds/60, t.MaxRequests)
-	if slices.Contains(t.Tasks, "authority-ledger") {
-		limitText = fmt.Sprintf("Authority: %dm; other tests: %dm. %d requests each.", taskWallSeconds("authority-ledger", t.WallSeconds)/60, t.WallSeconds/60, t.MaxRequests)
-	}
 	lines = append(lines, "", "Provider: "+clean(t.Models[0].Provider), "Tasks: "+strings.Join(t.Tasks, ", "), fmt.Sprintf("%d tests in this run. %s", t.Attempts(), limitText), fmt.Sprintf("$%.2f per test; $%.2f estimated total.", t.MaxEstimatedUSD, t.EstimatedBudget()), "Not a hard billing cap. Results stay in history.", "Transient errors: up to 2 retries per response.")
 	return strings.Join(lines, "\n")
 }
@@ -749,12 +788,15 @@ func (m Model) runDetail(j *bench.Job) string {
 					lines = append(lines, selected.Render("  > Open PNG with Windows (Enter or v), then rate 0-10"))
 				}
 			}
-			if r.HumanScore != nil && !rated {
-				lines = append(lines, fmt.Sprintf("  Your visual rating: %d/10", *r.HumanScore))
-			}
 			if r.Artifact.Collision {
 				lines = append(lines, "  Existing named SVG preserved; candidate remains in this run.")
 			}
+		}
+		if len(r.Presentations) > 0 {
+			lines = append(lines, "  Live webpage in the HTML results report.", selected.Render("  > Open HTML results (Enter or v), then rate 0-10"))
+		}
+		if r.HumanScore != nil && !rated {
+			lines = append(lines, fmt.Sprintf("  Your visual rating: %d/10", *r.HumanScore))
 		}
 		if r.Metrics != nil && r.Metrics.RetryCount > 0 {
 			lines = append(lines, fmt.Sprintf("  Retries scheduled: %d; recovered interruptions: %d.", r.Metrics.RetryCount, len(r.Metrics.RecoveredProviderErrors)))
@@ -843,20 +885,25 @@ func (m Model) comparison(current *bench.Job) []string {
 			grade = fmt.Sprintf("%d/%d graded checks", checks, total)
 		}
 		attemptText := fmt.Sprintf("%d/%d tests passed", passed, j.Template.Attempts())
-		if slices.Contains(j.Template.Tasks, "kangaroo-bike") {
-			visual := "SVG needs review"
+		visualTypes := 0
+		for _, task := range j.Template.Tasks {
+			if visualTask(task) {
+				visualTypes++
+			}
+		}
+		if visualTypes > 0 {
+			expectedVisuals := visualTypes * j.Template.Repeat
+			visual := fmt.Sprintf("0/%d visuals rated", expectedVisuals)
 			rated := 0
 			for _, r := range j.Results {
-				if r.Task == "kangaroo-bike" && r.HumanScore != nil {
+				if visualTask(r.Task) && r.HumanScore != nil {
 					rated++
 				}
 			}
-			if rated == 1 && j.Template.Repeat == 1 {
-				visual = "SVG reviewed"
-			} else if rated > 0 {
-				visual = fmt.Sprintf("%d/%d images rated", rated, j.Template.Repeat)
+			if rated > 0 {
+				visual = fmt.Sprintf("%d/%d visuals rated", rated, expectedVisuals)
 			}
-			attemptText = fmt.Sprintf("%d/%d coding tests passed; %s", passed, j.Template.Attempts()-j.Template.Repeat, visual)
+			attemptText = fmt.Sprintf("%d/%d coding tests passed; %s", passed, j.Template.Attempts()-expectedVisuals, visual)
 		}
 		status, rated := ratedRunStatus(j)
 		style := statusStyle(j.Status)
@@ -899,8 +946,10 @@ func (m Model) View() tea.View {
 	case runScreen:
 		body = m.detail.View()
 		footer = "PgUp/PgDn scroll  d delete  Esc home  q exit"
-		if reviewableImage(m.watchedJob()) != nil {
+		if _, kind := reviewableVisual(m.watchedJob()); kind == "image" {
 			footer = "Enter/v open PNG  PgUp/PgDn scroll  d delete  Esc home  q exit"
+		} else if kind == "webpage" {
+			footer = "Enter/v open HTML  PgUp/PgDn scroll  d delete  Esc home  q exit"
 		}
 		if j := m.watchedJob(); j != nil && !bench.Terminal(j.Status) {
 			footer = "c cancel   PgDn scroll   Esc home   q disconnect"

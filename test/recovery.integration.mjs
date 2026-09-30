@@ -16,7 +16,12 @@ for(const [outcome,exitCode] of [['provider_error',0],['provider_error',1],['tim
     try {
       const fixture=join(temp,'pi.cjs'), config=join(temp,'run.json');
       await writeFile(config,JSON.stringify({model:{provider:'openai-codex',model:'gpt-5.6-sol',thinking:'high'}}));
-      await writeFile(join(temp,'source.py'),await readFile(join(root,'references','authority-ledger.py')));
+      const bundle={
+        'scheduler/engine.py':await readFile(join(root,'references','resilient-scheduler.py'),'utf8'),
+        'scheduler/model.py':await readFile(join(root,'tasks','resilient-scheduler','scheduler','model.py'),'utf8'),
+        'scheduler/replay.py':await readFile(join(root,'tasks','resilient-scheduler','scheduler','replay.py'),'utf8'),
+      };
+      await writeFile(join(temp,'bundle.json'),JSON.stringify(bundle));
       await writeFile(fixture,`
 const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process');
 if(process.argv.includes('--version')){console.log('offline-fixture');process.exit(0)}
@@ -24,8 +29,8 @@ const spec=JSON.parse(fs.readFileSync(process.env.HB_RUN_SPEC,'utf8'));
 const settings=JSON.parse(fs.readFileSync(path.join(process.cwd(),'.pi','settings.json'),'utf8'));
 fs.writeFileSync(path.join(path.dirname(spec.statePath),'observed-settings.json'),JSON.stringify(settings));
 fs.writeFileSync(spec.statePath,JSON.stringify({status:'ready'}));
-const source=fs.readFileSync(path.join(__dirname,'source.py'),'utf8');
-cp.execFileSync('docker',['exec','-i',spec.container,'python','-I','-c',"import sys;open('/workspace/solution.py','w').write(sys.stdin.read())"],{input:source});
+const bundle=JSON.parse(fs.readFileSync(path.join(__dirname,'bundle.json'),'utf8'));
+for(const [file,source] of Object.entries(bundle))cp.execFileSync('docker',['exec','-i',spec.container,'python','-I','-c',"import pathlib,sys;p=pathlib.Path('/workspace/'+sys.argv[1]);p.parent.mkdir(parents=True,exist_ok=True);p.write_text(sys.stdin.read())",file],{input:source});
 const emit=e=>console.log(JSON.stringify(e));
 emit({type:'message_start',message:{role:'assistant'}});
 emit({type:'message_end',message:{role:'assistant',stopReason:'toolUse',content:[],usage:{input:10,output:20,cacheRead:0,cacheWrite:0,cost:{total:0.1}}}});
@@ -35,15 +40,15 @@ else if(${JSON.stringify(outcome)}==='aborted'){fs.writeFileSync(path.join(path.
 else if(${JSON.stringify(outcome)}==='timeout')setInterval(()=>{},1000);
 else if(${JSON.stringify(outcome)}!=='incomplete'){fs.writeFileSync(spec.statePath,JSON.stringify({status:'blocked',reason:${JSON.stringify(outcome)}}));}
 `);
-      const execution=await run(process.execPath,[join(root,'src/cli.mjs'),'run','authority-ledger','--config',config,'--managed-run',id,'--repeat','1','--wall-seconds','3','--execute'],{env:{...process.env,HB_PI_ENTRY:fixture},timeoutMs:30000});
+      const execution=await run(process.execPath,[join(root,'src/cli.mjs'),'run','resilient-scheduler','--config',config,'--managed-run',id,'--repeat','1','--wall-seconds','3','--execute'],{env:{...process.env,HB_PI_ENTRY:fixture},timeoutMs:30000});
       assert.equal(execution.code,1,execution.stderr);
       const event=JSON.parse(execution.stdout.trim());
       const result=JSON.parse(await readFile(event.resultFile,'utf8'));
       assert.equal(result.status,outcome);
       assert.equal(result.grade,null);
-      assert.equal(result.recovery?.state,'graded','interrupted solution was discarded instead of graded');
+      assert.equal(result.recovery?.state,'graded',JSON.stringify(result.recovery));
       assert.equal(result.recovery.grade.success,true);
-      assert.equal(result.recovery.grade.passed,60);
+      assert.equal(result.recovery.grade.passed,72);
       assert.equal(result.metrics.usageComplete,false);
       assert.equal(result.metrics.estimatedCostUsd,null);
       assert.equal(result.executionPolicy.transport,'sse');
@@ -53,7 +58,7 @@ else if(${JSON.stringify(outcome)}!=='incomplete'){fs.writeFileSync(spec.statePa
       assert.equal(settings.retry.maxRetries,2);
       assert.equal(settings.retry.provider.maxRetries,0);
       if(outcome==='provider_error')assert.equal(result.error,'WebSocket error');
-      assert.ok((await readFile(join(event.resultFile,'..','submission.py'),'utf8')).length>0);
+      assert.ok((await readFile(join(event.resultFile,'..','submission','scheduler','engine.py'),'utf8')).length>0);
     }finally{await rm(temp,{recursive:true,force:true});await rm(managed,{recursive:true,force:true});}
   });
 }

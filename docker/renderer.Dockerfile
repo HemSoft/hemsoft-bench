@@ -2,5 +2,5 @@
 # separately pinned python:3.12-slim image recorded in .local/runtime.json.
 FROM python:3.12-slim
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends librsvg2-bin \
+    && apt-get install -y --no-install-recommends librsvg2-bin chromium chromium-driver python3-selenium \
     && rm -rf /var/lib/apt/lists/*

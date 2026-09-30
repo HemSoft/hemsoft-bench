@@ -14,7 +14,7 @@
   Settings and retries may differ; not a ranking.                                                                       
                                                                                                                         
   gpt-5.6-sol / high  [this run]  provider_error                                                                        
-    0/1 coding tests passed; SVG needs review | not graded | 0m 00s                                                     
+    0/1 coding tests passed; 0/1 visuals rated | not graded | 0m 00s                                                    
     Sep 23 1:57 AM EDT | cost unknown                                                                                   
                                                                                                                         
   kimi-k3 / max  passed                                                                                                 
@@ -25,7 +25,7 @@
   1 / 2 tests                                                                                                           
     █████████████████████ ░░░░░░░░░░░░░░░░░░░░                                                                          
                                                                                                                         
-  authority-ledger  provider_error                                                                                      
+  resilient-scheduler  provider_error                                                                                   
     not graded | 0m 00s                                                                                                 
     cost unknown                                                                                                        
     Recovered snapshot: 60/60 checks. Not a completed pass.                                                             

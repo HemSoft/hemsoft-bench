@@ -7,11 +7,11 @@
   0 / 2 tests                                          
     ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒ ░░░░░░░░░░░░░░░░░░░░         
                                                        
-  Task: authority-ledger                               
+  Task: resilient-scheduler                            
   Stage: Model running                                 
   Run elapsed: 3m 00s                                  
   Activity: Reasoning stream                           
-  Test time: 0m 25s / 30m 00s                          
+  Test time: 0m 25s / 45m 00s                          
   Tools: 4 completed. Writes/edits: 1. Errors: 0.      
                                                        
                                                        

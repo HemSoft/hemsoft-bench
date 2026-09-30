@@ -111,8 +111,8 @@ func codingResultCell(row resultRow, task string) resultCell {
 	return resultCell{text: shortResultStatus(r.Status), style: style}
 }
 
-func visualResultCell(row resultRow) resultCell {
-	r, ok := row.tasks["kangaroo-bike"]
+func visualResultCell(row resultRow, task string) resultCell {
+	r, ok := row.tasks[task]
 	if !ok {
 		return resultCell{text: "-", style: muted}
 	}
@@ -154,9 +154,9 @@ func (m Model) resultsView() string {
 	width := max(30, m.width-4)
 	lines := []string{accent.Render("RESULTS BY MODEL")}
 	if width >= 92 {
-		lines = append(lines, "Latest Authority Ledger checks and bike review for each model setup.")
+		lines = append(lines, "Latest scheduler checks and visual ratings for each model setup.")
 	} else {
-		lines = append(lines, "Latest result for each test.", "Authority is passed/total. Bike is review or rating.")
+		lines = append(lines, "Latest result for each test.", "Scheduler is passed/total; visuals show review or rating.")
 	}
 	lines = append(lines, "")
 	if len(rows) == 0 {
@@ -164,13 +164,13 @@ func (m Model) resultsView() string {
 	}
 
 	wide := width >= 92
-	modelWidth := min(34, width-19)
+	modelWidth := min(34, width-26)
 	if wide {
-		modelWidth = min(34, width-30)
+		modelWidth = min(34, width-37)
 	}
 	modelWidth = max(12, modelWidth)
-	headers := []string{plainTableCell("MODEL / THINKING", modelWidth, muted), plainTableCell("AUTHORITY", 9, muted), plainTableCell("BIKE", 8, muted)}
-	separator := []string{strings.Repeat("-", modelWidth), strings.Repeat("-", 9), strings.Repeat("-", 8)}
+	headers := []string{plainTableCell("MODEL / THINKING", modelWidth, muted), plainTableCell("SCHED", 9, muted), plainTableCell("BIKE", 7, muted), plainTableCell("CLOCK", 7, muted)}
+	separator := []string{strings.Repeat("-", modelWidth), strings.Repeat("-", 9), strings.Repeat("-", 7), strings.Repeat("-", 7)}
 	if wide {
 		headers = append(headers, plainTableCell("LATEST RUN", 10, muted))
 		separator = append(separator, strings.Repeat("-", 10))
@@ -194,7 +194,7 @@ func (m Model) resultsView() string {
 			modelStyle = selected
 		}
 		modelText := prefix + clean(row.model.Model+" / "+row.model.Thinking)
-		cells := []string{plainTableCell(modelText, modelWidth, modelStyle), renderTableCell(codingResultCell(row, "authority-ledger"), 9), renderTableCell(visualResultCell(row), 8)}
+		cells := []string{plainTableCell(modelText, modelWidth, modelStyle), renderTableCell(codingResultCell(row, "resilient-scheduler"), 9), renderTableCell(visualResultCell(row, "kangaroo-bike"), 7), renderTableCell(visualResultCell(row, "world-clock"), 7)}
 		if wide {
 			cells = append(cells, renderTableCell(latestRunCell(row.latest), 10))
 		}

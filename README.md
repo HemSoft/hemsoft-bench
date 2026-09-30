@@ -6,7 +6,7 @@ Pi handles provider selection and authentication. Candidate file and terminal to
 
 ## Current status
 
-The Node evaluator has one coding task and one visual task, with a Go terminal dashboard and background job manager. Authority Ledger is the coding challenge. Offline verification covers the installed Pi extension, real Docker isolation, the independent reference implementation, grading, and managed concurrency/cancellation.
+The Node evaluator has one multi-file code-repair task and two visual tasks, with a Go terminal dashboard and background job manager. Resilient Scheduler is the coding challenge; Kangaroo Bike and World Clock are separately human-rated visual work. Offline verification covers the installed Pi extension, real Docker isolation, independent reference implementations, grading, browser checks, and managed concurrency/cancellation.
 
 Tested with Pi 0.87.0, Node 24.12.0, and Docker Desktop engine 29.5.3 on Windows. The sandbox is Linux with Python 3.12. This is not yet a Windows, .NET, browsing, or full-repository maintenance benchmark.
 
@@ -30,7 +30,7 @@ docker build --pull=false -t hemsoft-bench-renderer:local -f docker/renderer.Doc
 node src/cli.mjs setup
 ```
 
-`setup` records the immutable IDs of the candidate sandbox and the separate SVG renderer. Runs do not download images or silently follow tag changes. The renderer runs without network access and cannot change the candidate's pinned sandbox image.
+`setup` records the immutable IDs of the candidate sandbox and the separate visual-check image. That image contains librsvg and headless Chromium for offline SVG rendering and live-page checks. Runs do not download images or silently follow tag changes. Visual checks run without network access and cannot change the candidate's pinned sandbox image.
 
 ### Terminal dashboard
 
@@ -58,7 +58,7 @@ For a preview without model calls or cleanup:
 pwsh -NoProfile -File .\run.ps1
 ```
 
-The [PowerShell script](D:/github/HemSoft/hemsoft-bench/run.ps1) defaults to one Authority Ledger attempt followed by the bike visual. Authority Ledger caps agent work at 1,800 seconds, or 30 minutes, even when the saved general limit is higher. Its grading phase has no task-specific time cutoff. The visual task keeps the configured 2,700-second limit. Each attempt has a $5 estimated-cost limit and a separate 40-request cap. Offline self-tests default to 60 seconds. The script works from other directories too and accepts `-Config PATH` for another configuration. Execution stops on infrastructure or budget failures. An ordinary failing task score does not prevent the next task from running.
+The [PowerShell script](D:/github/HemSoft/hemsoft-bench/run.ps1) defaults to one Resilient Scheduler attempt followed by the bike and world-clock visual tasks. The saved configuration gives each task 1,800 seconds, or 30 minutes. Each attempt has a $5 estimated-cost limit and a separate 40-request cap. Offline self-tests default to 60 seconds. The script works from other directories too and accepts `-Config PATH` for another configuration. Execution stops on infrastructure or budget failures. An ordinary failing task score does not prevent the next task from running.
 
 By default, an executed script invocation deletes previous finalized run folders after readiness and reference checks pass, before its self-test and model attempts. It retains only the current invocation's artifacts, including its self-test and any failures or timeouts. Preview mode never deletes anything. Add `-KeepHistory` on each invocation when you want accumulated history; a later default invocation removes that history too. Configuration and the pinned Docker image are not deleted.
 
@@ -109,24 +109,26 @@ node src/cli.mjs self-test openrouter-kimi-k3 --wall-seconds 60
 First inspect a plan. Without `--execute`, this makes no model calls:
 
 ```powershell
-node src/cli.mjs run openrouter-kimi-k3 authority-ledger --repeat 1
+node src/cli.mjs run openrouter-kimi-k3 resilient-scheduler --repeat 1
 ```
 
 Add `--execute` when you intend to consume provider credits or subscription quota:
 
 ```powershell
-node src/cli.mjs run openrouter-kimi-k3 authority-ledger --repeat 1 --execute
+node src/cli.mjs run openrouter-kimi-k3 resilient-scheduler --repeat 1 --execute
 node src/cli.mjs report
 ```
 
-The regular `bench.exe` model run follows Authority Ledger with the visual task. The agent draws a kangaroo riding a bicycle in `/workspace/bike.svg`; the harness validates the SVG, renders a bounded PNG in a separate offline Docker container, and publishes both in `.local/results/`, such as `kimi-k3-bike.svg` and `kimi-k3-bike.png`. It reports `needs_visual_review`, not a coding pass or an automatic art score. On the run results screen, press Enter or `v` to open the PNG in the Windows default app. Return to the dashboard to enter your optional 0 to 10 visual rating, which remains separate from coding grades. You can also run only the visual task with `node src/cli.mjs run openrouter-kimi-k3 kangaroo-bike --repeat 1 --execute`. Neither named file is overwritten. If either filename is occupied, both new candidates remain under the attempt folder and the attempt reports `artifact_conflict`; the run's PNG can still be opened and rated from the dashboard. Deleting a managed run removes its named pair only when the recorded hashes still match.
+The regular `bench.exe` model run executes Resilient Scheduler, Kangaroo Bike, and World Clock. The bike task creates `/workspace/bike.svg`; the harness validates it, renders a bounded PNG in a separate offline container, and publishes both in `.local/results/`. The clock task creates `/workspace/world-clock.html`; the harness checks self-containment, current hand angles, second-hand movement, named world locations, and desktop/mobile fit in networkless headless Chromium. Its owned page is embedded in the HTML report inside a sandboxed, network-blocked frame. Both visual tasks report `needs_visual_review`, not coding passes or automatic art scores. Press Enter or `v` on a run to open the next unrated visual, then enter an optional 0 to 10 rating. Ratings remain separate from coding grades.
+
+You can run either visual task directly with `kangaroo-bike` or `world-clock`. Named bike exports are never overwritten; collisions retain both candidates in the attempt folder. World-clock pages are always retained only in their owned managed-run folders. Deleting a managed run removes its visual artifacts after ownership and hash checks.
 
 The default is three repeats when `--repeat` is omitted. Each attempt receives a fresh Pi conversation and container. Runs are sequential. An infrastructure or budget error stops the remaining repeats rather than silently retrying.
 
 Per-trial limits are configurable:
 
 ```powershell
-node src/cli.mjs run my-model authority-ledger --repeat 1 --wall-seconds 1800 --max-requests 40 --max-estimated-usd 5 --execute
+node src/cli.mjs run my-model resilient-scheduler --repeat 1 --wall-seconds 1800 --max-requests 40 --max-estimated-usd 5 --execute
 ```
 
 The cost guard uses Pi's reported estimates and checks between requests. One request can exceed the remaining estimate. Missing, zero, or subscription-specific pricing means it is not a hard billing cap. A subscription does not necessarily make every supported endpoint free. The wall-clock limit and request count provide separate controls.
@@ -139,7 +141,7 @@ New attempts also save bounded HTTP/SSE diagnostics, separate from Pi's interpre
 
 After a provider error, timeout, budget stop, cancellation, or incomplete response, the runner tries to capture the current solution before removing its container. A changed solution is graded in a fresh sandbox without another model call. The original status remains a failure, with a separate `recovery.grade` for the interrupted snapshot. Unchanged starter files are not graded. Capture, cleanup, and grading failures are recorded rather than promoted to passes. A hard process crash can still prevent capture. Previously saved results are not retroactively changed.
 
-The wall-clock limit applies to Pi execution, not image preparation or hidden grading. Individual terminal commands allow at most 60 seconds. Authority Ledger grading has no task-specific time cutoff and remains cancellable through the managed job.
+The wall-clock limit applies to Pi execution, not visual preparation or hidden grading. Individual candidate terminal commands allow at most 60 seconds. Grading and visual checks remain cancellable through the managed job.
 
 ### Read results
 
@@ -149,7 +151,7 @@ Each attempt writes a directory under [the local run store](D:/github/hemsoft/he
 - `events.jsonl` receives Pi's event stream as bytes arrive, not just when execution ends. A reader may see a partial final line during a run or after interruption.
 - `stderr.txt` receives startup and execution diagnostics as they arrive.
 - `activity.json` holds a metadata-only snapshot, updated every ten seconds and at tool/response boundaries. It includes last-event/model ages, counters, the current stage, and final status. A hard crash can leave a stale `running` snapshot; check `updatedAt` rather than treating the file as a liveness guarantee.
-- `submission.py` contains the candidate's submitted artifact when available.
+- `submission/scheduler/` contains the three captured scheduler package files when available. Visual submissions remain beside `result.json` in their owned attempt folder.
 - `extension-state.json` records successful initialization or a blocked run.
 
 `report` prints JSON grouped by compatible task, model, environment, budget, and implementation hashes. It exposes every status and does not pool changed task sets or execution policies. `recoveredGraded` and `recoveredFullPasses` are diagnostic counts; they never contribute to `fullPasses`. Offline self-tests are excluded. A partial collection of usage estimates is reported as unknown rather than an apparently complete cost. Interrupted model responses make token totals incomplete and total estimated cost unknown, even when earlier responses reported usage. Saved metrics retain observed token counts and `reportedEstimatedCostUsd` as partial diagnostic data. Historical reports also exclude old timeout estimates from complete cost totals; retained result files are not rewritten. Runs with the 2,700-second, $5 budget remain separate from runs with earlier budgets.
@@ -160,16 +162,17 @@ No public leaderboard, score upload, or session sharing is configured. Logs can 
 
 | Task | What it tests | Hidden cases |
 | --- | --- | --- |
-| [Authority Ledger](D:/github/hemsoft/hemsoft-bench/tasks/authority-ledger/TASK.md) | Bitemporal corrections, cyclic group membership, hierarchical policy scope, delegated-authority fixed points, specificity, and canonical proofs | 60 |
-| [Kangaroo bike](D:/github/HemSoft/hemsoft-bench/tasks/kangaroo-bike/TASK.md) | Produce a self-contained SVG for human visual review | None |
+| [Resilient Scheduler](tasks/resilient-scheduler/TASK.md) | Repair a multi-file event-sourced scheduler with leases, retries, dependencies, cancellation, resource placement, mutexes, stale events, effects, and crash recovery | 72 |
+| [Kangaroo Bike](tasks/kangaroo-bike/TASK.md) | Produce a self-contained SVG for human visual review | None |
+| [World Clock](tasks/world-clock/TASK.md) | Produce a responsive live analog/world-clock webpage for automated browser checks and human art review | None |
 
-Authority Ledger has **60 private checks**. Passing every check is full task success. The fraction of cases passed is diagnostic partial credit.
+Resilient Scheduler v1 has **72 deterministic private scenarios**, generated with fixed seed `92317`. Passing every scenario is full task success; the fraction passed is diagnostic partial credit. The grader captures only `scheduler/model.py`, `scheduler/engine.py`, and `scheduler/replay.py`, then imports `Engine` in a fresh container. The supplied package is intentionally defective and its public tests expose only part of the contract.
 
-The coding task submits one self-contained `solution.py`, reads JSON, and writes JSON. Authority Ledger starts with input/output helpers and public tests, then privately grades interacting temporal and delegation semantics. Its agent work period is capped at 30 minutes, while grading remains uncapped by task policy and operator-cancellable. The visual task instead requires `/workspace/bike.svg`; the harness validates SVG structure, not artistic content. No dependency installation is needed.
+Independent JavaScript and Python references agree on every retained scenario. Planted mutants for missing leases, stale-attempt acceptance, first-fit placement, linear backoff, missing mutexes, absent dependency propagation, and missing priority aging all receive partial credit but fail the suite. The defective starter currently passes 27/72 cases.
 
-Separate JavaScript grading oracles and Python reference implementations agree on the retained cases. Unit tests also check manually specified edge cases. That is useful validation, not independent human review or proof of complete test coverage.
+Offline calibration rejects a revision if the references disagree, the starter gets no useful partial credit or more than 45/72, any planted mutant reaches 72/72, or a required defect family disappears from the fixed case set. Paid pilots remain a separate operator decision. Before broad model runs, reject or deepen the task if a strong pilot reaches 72/72 substantially before the 30-minute target; do not respond by merely adding more cases or larger inputs.
 
-Authority Ledger is calibrated offline against deliberately flawed solvers: default-deny passes 14/60 cases, ignoring delegation passes 45/60, and ignoring recorded-time snapshots passes 43/60. Paid model calibration remains a separate operator decision. Do not change the grader after seeing a preferred model's result without recording and rescoring the change.
+The World Clock contract requires stable hand, face, and location hooks solely for deterministic browser checks. Artistic quality remains a human 0–10 rating. No task needs network access or dependency installation.
 
 ## Isolation design
 
@@ -181,14 +184,14 @@ Host, trusted
        | Four explicitly allowed sandbox tools
        v
 Fresh candidate container
-  TASK.md, starter solution.py, standard Python runtime
+  TASK.md, starter scheduler package or visual workspace, standard Python runtime
   Writable bounded /workspace and /tmp
   No host mounts, credentials, network, or grading code
        |
-       | Capture only solution.py as untrusted text, then remove container
+       | Capture only allowlisted submission files as untrusted text, then remove container
        v
 Fresh grading container
-  Submitted solution.py and hidden inputs only
+  Submitted scheduler package and hidden inputs only
   Expected answers and comparisons remain on the host
 ```
 

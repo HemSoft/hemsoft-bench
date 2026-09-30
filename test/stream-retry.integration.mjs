@@ -32,7 +32,7 @@ const scenarios=[
 for(const scenario of scenarios)test(`real Pi stream recovery: ${scenario.mode}`,async()=>{
  const dir=await mkdtemp(join(tmpdir(),'hb-stream-'));
  const id=randomUUID(),managed=join(root,'.local','managed-runs',id);
- const requests=[];const source=await readFile(join(root,'references','authority-ledger.py'),'utf8');
+ const requests=[];const source=await readFile(join(root,'references','resilient-scheduler.py'),'utf8');
  const server=createServer(async(req,res)=>{
   let body='';for await(const c of req)body+=c;
   const request=JSON.parse(body);requests.push(request);
@@ -44,7 +44,7 @@ for(const scenario of scenarios)test(`real Pi stream recovery: ${scenario.mode}`
   const chunk=(delta,finish=null)=>res.write('data: '+JSON.stringify({id:'offline-'+requests.length,object:'chat.completion.chunk',model:'kimi-k3',choices:[{index:0,delta,finish_reason:finish}]})+'\n\n');
   const usage=n=>res.write('data: '+JSON.stringify({choices:[],usage:{prompt_tokens:n,completion_tokens:0,total_tokens:n}})+'\n\n');
   const tool=(id,name,args,finish=true)=>{chunk({role:'assistant',tool_calls:[{index:0,id,type:'function',function:{name,arguments:JSON.stringify(args)}}]});if(finish)chunk({},'tool_calls');};
-  if(requests.length===1)tool('saved-code','sandbox_write',{path:'/workspace/solution.py',content:source});
+  if(requests.length===1)tool('saved-code','sandbox_write',{path:'/workspace/scheduler/engine.py',content:source});
   else if(requests.length===2||scenario.mode==='exhausted'){
    // A complete-looking tool call still must not execute without finish_reason.
    chunk({content:'INCOMPLETE_RESPONSE_MUST_NOT_BE_REPLAYED'});
@@ -55,7 +55,7 @@ for(const scenario of scenarios)test(`real Pi stream recovery: ${scenario.mode}`
    if(scenario.mode==='cost_limit')usage(1000000);
    if(scenario.mode==='timeout')await new Promise(resolve=>setTimeout(resolve,3000));
    res.end();return;
-  }else if(requests.length===3)tool('check-sandbox','sandbox_bash',{command:'test -s /workspace/solution.py && test ! -e /workspace/partial-marker.txt && echo preserved'});
+  }else if(requests.length===3)tool('check-sandbox','sandbox_bash',{command:'test -s /workspace/scheduler/engine.py && test ! -e /workspace/partial-marker.txt && echo preserved'});
   else chunk({content:'Finished.'},'stop');
   usage(scenario.mode==='cost_limit'?0:10);res.end('data: [DONE]\n\n');
  });
@@ -69,7 +69,7 @@ for(const scenario of scenarios)test(`real Pi stream recovery: ${scenario.mode}`
   const decoder=eventDecoder(event=>{
    if(scenario.mode==='cancel'&&event.type==='progress'&&event.activity?.phase==='Retrying response')writeFileSync(join(managed,'cancel'),'offline-test');
   });
-  const execution=await run(process.execPath,[join(root,'src','cli.mjs'),'run','authority-ledger','--config',config,'--managed-run',id,'--repeat','1','--wall-seconds',String(scenario.wall??30),...(scenario.limits??[]),'--execute','--progress-json'],{env:{...process.env,PI_CODING_AGENT_DIR:agent},timeoutMs:50000,onStdout:chunk=>decoder.push(chunk)});
+  const execution=await run(process.execPath,[join(root,'src','cli.mjs'),'run','resilient-scheduler','--config',config,'--managed-run',id,'--repeat','1','--wall-seconds',String(scenario.wall??30),...(scenario.limits??[]),'--execute','--progress-json'],{env:{...process.env,PI_CODING_AGENT_DIR:agent},timeoutMs:50000,onStdout:chunk=>decoder.push(chunk)});
   decoder.end();
   const event=JSON.parse(execution.stdout.trim().split('\n').at(-1));
   const result=JSON.parse(await readFile(event.resultFile,'utf8'));
@@ -88,7 +88,7 @@ for(const scenario of scenarios)test(`real Pi stream recovery: ${scenario.mode}`
   assert.deepEqual(diagnosis.unobservedRequests,[]);
   assert.equal(diagnosis.requests.length,requests.length);
   if(scenario.status==='passed'){
-   assert.equal(result.grade.passed,60);
+   assert.equal(result.grade.passed,72);
    const failure=diagnosis.requests.find(r=>r.request===2);
    const expected={recover:'eof_without_finish_reason',done_without_finish:'done_without_finish_reason',socket_reset:'stream_read_failed',finish_error:'provider_error_event'}[scenario.mode];
    assert.equal(failure.condition,expected,JSON.stringify(failure));
@@ -107,7 +107,7 @@ for(const scenario of scenarios)test(`real Pi stream recovery: ${scenario.mode}`
    else assert.equal(result.metrics.recoveredProviderErrors.length,1);
   }else{
    assert.equal(result.grade,null);
-   assert.equal(result.recovery.grade.passed,60,'existing code was not retained after exhausted recovery');
+   assert.equal(result.recovery.grade.passed,72,'existing code was not retained after exhausted recovery');
   }
  }finally{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));await rm(dir,{recursive:true,force:true});await rm(managed,{recursive:true,force:true});}
 });
