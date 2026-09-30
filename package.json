@@ -1,0 +1,13 @@
+{
+  "name": "hemsoft-bench",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "test:integration": "node --test test/*.integration.mjs",
+    "bench": "node src/cli.mjs",
+    "check": "node --check src/cli.mjs && node --test test/*.test.mjs"
+  }
+}

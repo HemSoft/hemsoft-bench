@@ -1,0 +1,18 @@
+  HEMSOFT BENCH                                        
+                                                       
+  PREVIOUS RUNS                                        
+  Choose a run to see its progress or results.         
+                                                       
+  > gpt-5.6-sol / high  RUNNING                        
+    Sep 23 1:57 AM EDT                                 
+                                                       
+    kimi-k3 / max  PASSED                              
+    Sep 23 1:57 AM EDT                                 
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+  Up/Down select  Enter open  d delete  Esc home  ...  

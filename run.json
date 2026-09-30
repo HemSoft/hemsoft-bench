@@ -1,0 +1,12 @@
+{
+  "model": {
+    "provider": "openrouter",
+    "model": "moonshotai/kimi-k3",
+    "thinking": "max"
+  },
+  "tasks": ["authority-ledger", "kangaroo-bike"],
+  "repeat": 1,
+  "wallSeconds": 2700,
+  "maxRequests": 40,
+  "maxEstimatedUsd": 5
+}

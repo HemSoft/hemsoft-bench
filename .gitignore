@@ -1,0 +1,11 @@
+.local/
+models.local.json
+.env
+.env.*
+!.env.example
+node_modules/
+__pycache__/
+*.pyc
+/bench.exe
+/bench
+/bin/

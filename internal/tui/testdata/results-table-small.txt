@@ -1,0 +1,18 @@
+  HEMSOFT BENCH                                        
+                                                       
+  RESULTS BY MODEL                                     
+  Latest result for each test.                         
+  Authority is passed/total. Bike is review or rat...  
+                                                       
+  MODEL / THINKING                 AUTHORITY BIKE      
+  -------------------------------- --------- --------  
+  > gpt-5.6-sol / high             -         -         
+    kimi-k3 / max                  60/60     -         
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+  v HTML view  Up/Down select  Enter latest run  E...  

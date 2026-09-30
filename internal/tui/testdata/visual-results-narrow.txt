@@ -1,0 +1,26 @@
+  HEMSOFT BENCH                                                                 
+                                                                                
+  RUN RESULTS                                                                   
+  openai-codex / gpt-5.6-sol / high                                             
+  NEEDS_VISUAL_REVIEW                                                           
+                                                                                
+  Check pass rate: 100.0% (60/60 hidden checks)                                 
+  Coding tests passed: 1/1.                                                     
+  SVG saved for human review; appearance ungraded.                              
+  Scope: 1 coding task; difficulty uncalibrated.                                
+                                                                                
+  COMPARE RECORDED RESULTS                                                      
+  Settings and retries may differ; not a ranking.                               
+                                                                                
+  gpt-5.6-sol / high  [this run]  needs_visual_review                           
+    1/1 coding tests passed; SVG needs review | 60/60 graded checks | 0m 00s    
+    Sep 23 1:57 AM EDT | cost unknown                                           
+                                                                                
+  kimi-k3 / max  passed                                                         
+    1/1 tests passed | 60/60 graded checks | 2m 49s                             
+    Sep 23 1:57 AM EDT | $0.1250 estimated                                      
+                                                                                
+  TASK DETAILS                                                                  
+  2 / 2 tests                                                                   
+                                                                                
+  PgUp/PgDn scroll  d delete  Esc home  q exit                                  

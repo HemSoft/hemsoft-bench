@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23d9f769' d='M16 0l7 7-7 7-7-7zm0 18l7 7-7 7-7-7zM0 16l7-7 7 7-7 7zm18 0l7-7 7 7-7 7z'/%3E%3C/svg%3E">
+<title>HemSoft Bench · Results</title>
+<style>
+:root {
+  --ink: #14201d;
+  --ink-soft: #45534e;
+  --paper: #f3f5f0;
+  --sheet: #ffffff;
+  --field: #dfe7de;
+  --line: #c7d1c9;
+  --accent: #155f54;
+  --accent-deep: #0b4039;
+  --signal: #d9f769;
+  --good: #126348;
+  --good-bg: #d8efe3;
+  --active: #7a5300;
+  --active-bg: #fae8aa;
+  --bad: #a13c32;
+  --bad-bg: #f7ddd9;
+  --muted-bg: #e8ece8;
+  --radius: 14px;
+  --shadow: 0 18px 45px rgba(20, 32, 29, .12), 0 3px 10px rgba(20, 32, 29, .06);
+  font-family: "Aptos", "Segoe UI Variable", "Segoe UI", sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; min-width: 320px; background: var(--paper); }
+::selection { color: white; background: var(--accent); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: var(--field); }
+::-webkit-scrollbar-thumb { background: #81918a; border: 3px solid var(--field); border-radius: 10px; }
+button { font: inherit; }
+.shell { width: min(1500px, calc(100% - 48px)); margin: 0 auto; }
+.masthead { color: #f7fbf8; background: var(--ink); border-bottom: 1px solid #2e3f3a; }
+.masthead .shell { min-height: 300px; padding: 42px 0 38px; display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, .7fr); gap: 72px; align-items: end; }
+.brand { display: inline-flex; align-items: center; gap: 11px; margin-bottom: 52px; color: #c7d5cf; font-size: .78rem; font-weight: 720; letter-spacing: .14em; text-transform: uppercase; }
+.brand-mark { width: 19px; height: 19px; display: grid; grid-template-columns: 1fr 1fr; gap: 3px; transform: rotate(45deg); }
+.brand-mark span { background: var(--signal); }
+h1 { max-width: 760px; margin: 0; font-size: clamp(2.65rem, 5.7vw, 5.35rem); line-height: .96; letter-spacing: -.04em; font-weight: 680; text-wrap: balance; }
+.intro { margin: 26px 0 0; max-width: 68ch; color: #cbd8d3; font-size: 1.04rem; line-height: 1.65; }
+.summary { align-self: stretch; display: flex; flex-direction: column; justify-content: flex-end; border-top: 1px solid #50605b; padding-top: 24px; }
+.summary p { margin: 0; color: #cbd8d3; line-height: 1.55; }
+.summary strong { color: white; font-size: 1.1rem; }
+.generated { margin-top: 28px !important; color: #92a69e !important; font-size: .78rem; font-variant-numeric: tabular-nums; }
+main.shell { padding: 62px 0 90px; }
+.section-head { display: flex; align-items: end; justify-content: space-between; gap: 28px; margin-bottom: 22px; }
+.section-head h2 { margin: 0; font-size: 1.65rem; letter-spacing: -.025em; }
+.section-head p { max-width: 62ch; margin: 0; color: var(--ink-soft); line-height: 1.55; }
+.matrix-wrap { overflow-x: auto; margin-bottom: 76px; background: var(--sheet); border-radius: var(--radius); box-shadow: var(--shadow); }
+table { width: 100%; min-width: 760px; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { padding: 18px 20px; text-align: left; border-bottom: 1px solid var(--line); }
+th { position: sticky; top: 0; z-index: 2; color: #e7efea; background: var(--accent-deep); font-size: .72rem; letter-spacing: .09em; text-transform: uppercase; }
+th:first-child { border-radius: var(--radius) 0 0 0; }
+th:last-child { border-radius: 0 var(--radius) 0 0; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: #f3f8f4; }
+.model-name { display: block; margin-bottom: 4px; font-size: 1rem; font-weight: 720; letter-spacing: -.01em; }
+.model-meta, .run-date { color: var(--ink-soft); font-size: .78rem; }
+.run-date { display: block; margin-top: 5px; }
+.badge { display: inline-flex; align-items: center; min-height: 28px; padding: 4px 10px; border-radius: 8px; font-size: .78rem; font-weight: 720; white-space: nowrap; }
+.badge.good { color: var(--good); background: var(--good-bg); }
+.badge.active { color: var(--active); background: var(--active-bg); }
+.badge.bad { color: var(--bad); background: var(--bad-bg); }
+.badge.muted { color: var(--ink-soft); background: var(--muted-bg); }
+.view-controls { display: inline-flex; padding: 4px; gap: 3px; border: 1px solid var(--line); border-radius: 11px; background: var(--field); }
+.view-controls button { min-height: 34px; padding: 6px 13px; border: 0; border-radius: 8px; color: var(--ink-soft); background: transparent; cursor: pointer; font-size: .8rem; font-weight: 720; }
+.view-controls button:hover { color: var(--ink); background: rgba(255,255,255,.58); }
+.view-controls button[aria-pressed="true"] { color: white; background: var(--accent); }
+.gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+.gallery.list { grid-template-columns: 1fr; }
+.media-item { min-width: 0; overflow: hidden; background: var(--sheet); border-radius: var(--radius); box-shadow: var(--shadow); }
+.media-stage { position: relative; min-height: 340px; display: grid; place-items: center; overflow: hidden; background: #e5e9e3; }
+.media-stage img { display: block; width: 100%; height: 100%; min-height: 340px; max-height: 620px; object-fit: contain; background: #eef1ec; }
+.media-stage iframe { display: block; width: 100%; height: min(70vh, 720px); border: 0; background: white; }
+.media-stage .empty { max-width: 42ch; padding: 44px; color: var(--ink-soft); line-height: 1.55; text-align: center; }
+.expand { position: absolute; right: 14px; bottom: 14px; min-height: 38px; padding: 8px 13px; border: 0; border-radius: 10px; color: white; background: rgba(20, 32, 29, .9); box-shadow: 0 4px 14px rgba(20,32,29,.22); cursor: pointer; font-size: .78rem; font-weight: 720; }
+.expand:hover { background: var(--accent); }
+.media-caption { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: start; padding: 20px 22px 22px; border-top: 1px solid var(--line); }
+.media-caption h3 { margin: 0 0 6px; font-size: 1.02rem; letter-spacing: -.015em; }
+.media-caption p { margin: 0; color: var(--ink-soft); font-size: .8rem; line-height: 1.5; }
+.media-caption .badge { justify-self: end; }
+.empty-gallery { padding: 52px; color: var(--ink-soft); background: var(--sheet); border-radius: var(--radius); box-shadow: var(--shadow); line-height: 1.6; }
+.contract { margin-top: 62px; padding-top: 26px; border-top: 1px solid var(--line); color: var(--ink-soft); }
+.contract summary { width: fit-content; color: var(--ink); cursor: pointer; font-weight: 720; }
+.contract p { max-width: 76ch; line-height: 1.65; }
+dialog { width: min(1400px, calc(100% - 36px)); max-width: none; height: min(92vh, 980px); padding: 0; border: 0; border-radius: 16px; overflow: hidden; background: #e8ece7; box-shadow: 0 32px 100px rgba(0,0,0,.45); }
+dialog::backdrop { background: rgba(9, 18, 15, .78); backdrop-filter: blur(5px); }
+.dialog-bar { height: 58px; padding: 0 16px 0 22px; display: flex; align-items: center; justify-content: space-between; gap: 20px; color: white; background: var(--ink); }
+.dialog-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 720; }
+.dialog-close { min-height: 38px; padding: 7px 12px; border: 1px solid #61716b; border-radius: 10px; color: white; background: transparent; cursor: pointer; font-size: .78rem; font-weight: 720; }
+.dialog-close:hover { border-color: var(--signal); color: var(--signal); }
+.dialog-content { height: calc(100% - 58px); display: grid; place-items: center; overflow: auto; }
+.dialog-content img { width: 100%; height: 100%; object-fit: contain; }
+.dialog-content iframe { width: 100%; height: 100%; border: 0; background: white; }
+@media (max-width: 900px) {
+  .shell { width: min(100% - 30px, 760px); }
+  .masthead .shell { min-height: 0; padding: 30px 0 34px; grid-template-columns: 1fr; gap: 38px; }
+  .brand { margin-bottom: 42px; }
+  h1 { font-size: clamp(2.55rem, 11vw, 4.5rem); }
+  .summary { padding-top: 20px; }
+  main.shell { padding-top: 40px; }
+  .section-head { align-items: start; flex-direction: column; }
+  .gallery { grid-template-columns: 1fr; }
+  .media-stage { min-height: 260px; }
+  .media-stage img { min-height: 260px; }
+}
+@media (max-width: 700px) {
+  .matrix-wrap { overflow: visible; background: transparent; box-shadow: none; }
+  table { min-width: 0; border-collapse: separate; border-spacing: 0 12px; }
+  thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+  tbody, tr, td { display: block; width: 100%; }
+  tbody tr { padding: 11px 13px; overflow: hidden; background: var(--sheet); border-radius: 12px; box-shadow: 0 8px 22px rgba(20, 32, 29, .09); }
+  tbody tr:hover { background: var(--sheet); }
+  tbody td { min-height: 38px; padding: 8px 3px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: center; border: 0; }
+  tbody td:first-child { display: block; min-height: 0; padding-bottom: 13px; margin-bottom: 5px; border-bottom: 1px solid var(--line); }
+  tbody td:not(:first-child)::before { content: attr(data-label); color: var(--ink-soft); font-size: .75rem; font-weight: 650; }
+  .run-date { grid-column: 1 / -1; justify-self: end; margin-top: -5px; }
+}
+@media (max-width: 520px) {
+  .shell { width: calc(100% - 22px); }
+  h1 { font-size: 2.65rem; }
+  .intro { font-size: .96rem; }
+  main.shell { padding-bottom: 56px; }
+  .media-caption { grid-template-columns: 1fr; }
+  .media-caption .badge { justify-self: end; }
+  .view-controls { width: 100%; }
+  .view-controls button { flex: 1; }
+  dialog { width: calc(100% - 16px); height: calc(100vh - 16px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+@media print {
+  :root { --shadow: none; }
+  .masthead { color: var(--ink); background: white; }
+  .masthead .shell { min-height: 0; padding: 20px 0; }
+  .brand, .intro, .summary p { color: var(--ink-soft); }
+  .view-controls, .expand, dialog { display: none !important; }
+  .gallery { grid-template-columns: 1fr 1fr; }
+  .media-item, .matrix-wrap { break-inside: avoid; border: 1px solid var(--line); }
+}
+</style>
+</head>
+<body>
+<header class="masthead">
+  <div class="shell">
+    <div>
+      <div class="brand"><span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></span>HemSoft Bench</div>
+      <h1>Model results, in full view.</h1>
+      <p class="intro">A current comparison of coding checks and visual work. Results stay descriptive: provider settings, retries, and environments can differ between runs.</p>
+    </div>
+    <div class="summary">
+      <p><strong>{{.SetupCount}} model setups</strong><br>{{.AuthorityTested}} authority results · {{.VisualCount}} visual artifacts</p>
+      <p class="generated">Generated {{.Generated}}</p>
+    </div>
+  </div>
+</header>
+<main class="shell">
+  <section aria-labelledby="matrix-title">
+    <div class="section-head">
+      <div><h2 id="matrix-title">Latest result by model</h2></div>
+      <p>Each column uses the newest recorded result for that provider, model, and thinking level.</p>
+    </div>
+    <div class="matrix-wrap">
+      <table>
+        <thead><tr><th scope="col">Model setup</th><th scope="col">Authority Ledger</th><th scope="col">Visual</th><th scope="col">Latest run</th></tr></thead>
+        <tbody>
+          {{range .Rows}}
+          <tr>
+            <td><span class="model-name">{{.Model}}</span><span class="model-meta">{{.Provider}} · {{.Thinking}} thinking</span></td>
+            <td data-label="Authority Ledger"><span class="badge {{.Authority.Tone}}">{{.Authority.Text}}</span></td>
+            <td data-label="Visual"><span class="badge {{.Visual.Tone}}">{{.Visual.Text}}</span></td>
+            <td data-label="Latest run"><span class="badge {{.Latest.Tone}}">{{.Latest.Text}}</span>{{if .Date}}<span class="run-date">{{.Date}}</span>{{end}}</td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="gallery-title">
+    <div class="section-head">
+      <div><h2 id="gallery-title">Visual work</h2></div>
+      {{if .Media}}
+      <div class="view-controls" aria-label="Visual layout">
+        <button type="button" data-view="grid" aria-pressed="true">Grid</button>
+        <button type="button" data-view="list" aria-pressed="false">List</button>
+      </div>
+      {{end}}
+    </div>
+    {{if .Media}}
+    <div class="gallery" id="visual-gallery">
+      {{range .Media}}
+      <article class="media-item">
+        <div class="media-stage">
+          {{if eq .Kind "webpage"}}
+            {{if .HTML}}<iframe title="{{.Label}} by {{.Model}}" sandbox="allow-scripts" loading="lazy" srcdoc="{{.HTML}}"></iframe>{{else}}<p class="empty">{{.Note}}</p>{{end}}
+          {{else}}
+            {{if .Source}}<img src="{{.Source}}" alt="{{.Label}} generated by {{.Model}}" loading="lazy">{{else}}<p class="empty">{{.Note}}</p>{{end}}
+          {{end}}
+          {{if or .Source .HTML}}<button class="expand" type="button">Open large</button>{{end}}
+          <template class="media-template">
+            {{if eq .Kind "webpage"}}<iframe title="{{.Label}} by {{.Model}}" sandbox="allow-scripts" srcdoc="{{.HTML}}"></iframe>{{else}}<img src="{{.Source}}" alt="{{.Label}} generated by {{.Model}}">{{end}}
+          </template>
+        </div>
+        <div class="media-caption">
+          <div><h3>{{.Model}}</h3><p>{{.Label}} · {{.Provider}} · {{.Thinking}} thinking{{if .Date}}<br>{{.Date}}{{end}}</p></div>
+          <span class="badge {{.Tone}}">{{.Status}}</span>
+        </div>
+      </article>
+      {{end}}
+    </div>
+    {{else}}
+    <div class="empty-gallery">No visual artifacts have been recorded yet. Image and self-contained webpage artifacts will appear here when a visual task publishes them.</div>
+    {{end}}
+  </section>
+
+  <details class="contract">
+    <summary>How future visual tests join this report</summary>
+    <p>Visual tasks can publish image or self-contained webpage presentations with their result. Images join this gallery directly. Webpages render inside isolated, network-blocked browser frames and can expand to a full report viewport without gaining access to the report or local credentials.</p>
+  </details>
+</main>
+<dialog id="preview-dialog" aria-labelledby="dialog-title">
+  <div class="dialog-bar"><div class="dialog-title" id="dialog-title">Visual preview</div><button type="button" class="dialog-close">Close</button></div>
+  <div class="dialog-content"></div>
+</dialog>
+<script>
+(() => {
+  const gallery = document.querySelector('#visual-gallery');
+  const controls = [...document.querySelectorAll('[data-view]')];
+  let stored = null;
+  try { stored = localStorage.getItem('hemsoft-results-view'); } catch (_) {}
+  const setView = view => {
+    if (!gallery) return;
+    gallery.classList.toggle('list', view === 'list');
+    controls.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.view === view)));
+    try { localStorage.setItem('hemsoft-results-view', view); } catch (_) {}
+  };
+  if (stored === 'list') setView('list');
+  controls.forEach(button => button.addEventListener('click', () => setView(button.dataset.view)));
+
+  const dialog = document.querySelector('#preview-dialog');
+  const content = dialog.querySelector('.dialog-content');
+  const title = dialog.querySelector('.dialog-title');
+  document.querySelectorAll('.expand').forEach(button => button.addEventListener('click', () => {
+    const item = button.closest('.media-item');
+    const template = item.querySelector('.media-template');
+    content.replaceChildren(template.content.cloneNode(true));
+    title.textContent = item.querySelector('h3').textContent + ' · ' + item.querySelector('.media-caption p').textContent.split(' · ')[0];
+    dialog.showModal();
+  }));
+  const close = () => { dialog.close(); content.replaceChildren(); };
+  dialog.querySelector('.dialog-close').addEventListener('click', close);
+  dialog.addEventListener('click', event => { if (event.target === dialog) close(); });
+  dialog.addEventListener('cancel', event => { event.preventDefault(); close(); });
+})();
+</script>
+</body>
+</html>

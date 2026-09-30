@@ -1,0 +1,18 @@
+  HEMSOFT BENCH                                        
+                                                       
+  PREVIOUS RUNS                                        
+  Choose a run to see its progress or results.         
+                                                       
+  No runs yet. Esc returns to the main menu.           
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+  Up/Down select  Enter open  d delete  Esc home  ...  

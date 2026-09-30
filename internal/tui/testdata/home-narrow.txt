@@ -1,0 +1,26 @@
+  HEMSOFT BENCH                           
+                                          
+  What would you like to do?              
+                                          
+  > Start a new run                       
+                                          
+    View Results                          
+                                          
+    View previous runs                    
+                                          
+  2 recorded runs. 1 still active.        
+                                          
+                                          
+                                          
+                                          
+                                          
+                                          
+                                          
+                                          
+                                          
+                                          
+                                          
+                                          
+                                          
+                                          
+  Up/Down select   Enter choose   q exit  

@@ -1,0 +1,18 @@
+  HEMSOFT BENCH                                  
+                                                 
+  DELETE THIS RUN PERMANENTLY?                   
+                                                 
+  kimi-k3 / max                                  
+  Sep 23 1:57 AM EDT                             
+  Run: old                                       
+                                                 
+  Removes all artifacts and its history entry:   
+  logs, saved code, results, and diagnostics.    
+  Other runs and model settings stay unchanged.  
+                                                 
+  This cannot be undone.                         
+                                                 
+                                                 
+                                                 
+                                                 
+  y DELETE permanently  Esc keep run  q exit     

@@ -1,0 +1,34 @@
+  HEMSOFT BENCH                                                                                                         
+                                                                                                                        
+  RUN RESULTS                                                                                                           
+  openai-codex / gpt-5.6-sol / high                                                                                     
+  PROVIDER_ERROR                                                                                                        
+                                                                                                                        
+  Failure: WebSocket error                                                                                              
+                                                                                                                        
+  Not scored: no completed task grades.                                                                                 
+  Coding tests passed: 0/1.                                                                                             
+  Scope: 1 coding task; difficulty uncalibrated.                                                                        
+                                                                                                                        
+  COMPARE RECORDED RESULTS                                                                                              
+  Settings and retries may differ; not a ranking.                                                                       
+                                                                                                                        
+  gpt-5.6-sol / high  [this run]  provider_error                                                                        
+    0/1 coding tests passed; SVG needs review | not graded | 0m 00s                                                     
+    Sep 23 1:57 AM EDT | cost unknown                                                                                   
+                                                                                                                        
+  kimi-k3 / max  passed                                                                                                 
+    1/1 tests passed | 60/60 graded checks | 2m 49s                                                                     
+    Sep 23 1:57 AM EDT | $0.1250 estimated                                                                              
+                                                                                                                        
+  TASK DETAILS                                                                                                          
+  1 / 2 tests                                                                                                           
+    █████████████████████ ░░░░░░░░░░░░░░░░░░░░                                                                          
+                                                                                                                        
+  authority-ledger  provider_error                                                                                      
+    not graded | 0m 00s                                                                                                 
+    cost unknown                                                                                                        
+    Recovered snapshot: 60/60 checks. Not a completed pass.                                                             
+                                                                                                                        
+                                                                                                                        
+  PgUp/PgDn scroll  d delete  Esc home  q exit                                                                          
