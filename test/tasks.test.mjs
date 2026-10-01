@@ -16,6 +16,21 @@ test('scheduler cases cover interacting recovery and dispatch rules',()=>{
   for(const marker of ['checkpoint','heartbeat','workerDown','mutex','requires','effect','labels','maxAttempts'])assert.match(text,new RegExp(marker));
 });
 
+test('external operations at a retry boundary compete before dispatch',()=>{
+  const job=(id,priority=0)=>({id,priority,resources:{cpu:1,memory:1},lease:10,maxAttempts:2,backoff:2,aging:10});
+  const answer=schedulerAnswers([{
+    workers:[{id:'w',cpu:1,memory:1,labels:[]}],
+    operations:[
+      {at:0,type:'submit',job:job('a')},
+      {at:1,type:'fail',job:'a',token:'a:1'},
+      {at:3,type:'submit',job:job('b',100)},
+    ],
+    until:3,
+  }])[0];
+  assert.equal(answer.timeline.at(-1).event,'started');
+  assert.equal(answer.timeline.at(-1).job,'b');
+});
+
 test('planted shallow schedulers receive partial credit but cannot pass',()=>{
   const cases=taskCases('resilient-scheduler'),expected=expectedAnswers('resilient-scheduler',cases);
   for(const options of [{noAging:true},{firstFit:true},{noLeases:true},{noBackoff:true},{acceptStale:true},{noMutex:true},{noDependencyPropagation:true}]){

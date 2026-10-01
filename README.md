@@ -168,7 +168,7 @@ No public leaderboard, score upload, or session sharing is configured. Logs can 
 
 Resilient Scheduler v1 has **72 deterministic private scenarios**, generated with fixed seed `92317`. Passing every scenario is full task success; the fraction passed is diagnostic partial credit. The grader captures only `scheduler/model.py`, `scheduler/engine.py`, and `scheduler/replay.py`, then imports `Engine` in a fresh container. The supplied package is intentionally defective and its public tests expose only part of the contract.
 
-Independent JavaScript and Python references agree on every retained scenario. Planted mutants for missing leases, stale-attempt acceptance, first-fit placement, linear backoff, missing mutexes, absent dependency propagation, and missing priority aging all receive partial credit but fail the suite. The defective starter currently passes 27/72 cases.
+Independent JavaScript and Python references agree on every retained scenario. Planted mutants for missing leases, stale-attempt acceptance, first-fit placement, linear backoff, missing mutexes, absent dependency propagation, and missing priority aging all receive partial credit but fail the suite. The defective starter currently passes 21/72 cases.
 
 Offline calibration rejects a revision if the references disagree, the starter gets no useful partial credit or more than 45/72, any planted mutant reaches 72/72, or a required defect family disappears from the fixed case set. Paid pilots remain a separate operator decision. Before broad model runs, reject or deepen the task if a strong pilot reaches 72/72 substantially before the 30-minute target; do not respond by merely adding more cases or larger inputs.
 

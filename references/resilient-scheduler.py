@@ -57,7 +57,7 @@ class Engine:
         while (t:=self.next_internal(target)) is not None:
             self.now=t
             for j in sorted((x for x in self.jobs.values() if x['status']=='running' and x['leaseUntil']<=t),key=lambda x:x['id']):self.retry(j,t,'lease')
-            self.propagate(t);self.dispatch(t)
+            if t<target:self.propagate(t);self.dispatch(t)
         self.now=target
     def submit(self,spec,at):
         if spec['id'] in self.jobs or spec.get('key') and spec['key'] in self.keys:return

@@ -42,6 +42,21 @@ test('offline world clock becomes an owned sandboxed webpage presentation',async
  assert.equal(source,valid);
 });
 
+test('world clock accepts harmless JavaScript slashes and rendered location hooks',async()=>{
+ const dynamic=valid
+  .replace('<div class="locations"><p data-world-location>New York</p><p data-world-location>London</p><p data-world-location>Tokyo</p><p data-world-location>Sydney</p></div>','<div class="locations" id="locations"></div>')
+  .replace('<script>',`<script>
+// JavaScript comments and slash regexes are not protocol-relative URLs.
+'a/b'.replace(/\\//g,'');
+for(const name of ['New York','London','Tokyo','Sydney']){
+ const p=document.createElement('p');p.dataset.worldLocation=name;p.textContent=name;document.getElementById('locations').append(p)
+}`);
+ const {execution,result,source}=await attempt(dynamic);
+ assert.equal(execution.code,0,execution.stderr);
+ assert.equal(result.status,'needs_visual_review',result.error);
+ assert.equal(source,dynamic);
+});
+
 test('world clock rejects a hand that does not keep moving',async()=>{
  const stopped=valid.replace('setInterval(tick,250)','setInterval(()=>{},250)');
  const {execution,result,source}=await attempt(stopped);

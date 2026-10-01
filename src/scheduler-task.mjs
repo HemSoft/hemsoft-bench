@@ -85,7 +85,9 @@ export function schedulerReference(input,options={}){
       now=t;
       const expired=[...jobs.values()].filter(j=>j.status==='running'&&j.leaseUntil<=t).sort((a,b)=>compareText(a.id,b.id));
       for(const j of expired){if(options.noLeases){j.leaseUntil=target+1;continue;}retry(j,t,'lease');}
-      propagate(t);dispatch(t);
+      // At an external-operation timestamp, defer scheduling until the caller
+      // applies the complete batch. Internal timestamps before it dispatch now.
+      if(t<target){propagate(t);dispatch(t);}
     }
     now=target;
   };

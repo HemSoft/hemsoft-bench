@@ -14,12 +14,9 @@ data=open(p,'rb').read(2097153)
 if not data or len(data)>2097152: raise ValueError('HTML must be 1 byte to 2 MiB')
 text=data.decode('utf-8','strict')
 if re.search(r'<!\s*(?:DOCTYPE\s+[^>]*\bSYSTEM\b|ENTITY)',text,re.I): raise ValueError('External declarations are forbidden')
-scan=text.replace('http://www.w3.org/2000/svg','').replace('http://www.w3.org/1999/xhtml','').replace('http://www.w3.org/1999/xlink','')
-if re.search(r'(?:https?|wss?|ftp):|(?<!:)//',scan,re.I): raise ValueError('External URLs are forbidden')
-if re.search(r'@import\b',text,re.I): raise ValueError('CSS imports are forbidden')
 class Check(HTMLParser):
  def __init__(self):
-  super().__init__(convert_charrefs=True);self.count=0;self.scripts=[];self.in_script=False;self.title=[];self.in_title=False;self.hands=set();self.locations=0;self.face=False
+  super().__init__(convert_charrefs=True);self.count=0;self.scripts=[];self.in_script=False;self.styles=[];self.inline_styles=[];self.in_style=False;self.title=[];self.in_title=False
  def handle_starttag(self,tag,attrs):
   self.count+=1
   if self.count>5000: raise ValueError('HTML is too complex')
@@ -29,10 +26,9 @@ class Check(HTMLParser):
   if tag=='script':
    if 'src' in a: raise ValueError('External scripts are forbidden')
    self.in_script=True
+  if tag=='style': self.in_style=True
   if tag=='title': self.in_title=True
-  if a.get('data-clock-hand') in {'hour','minute','second'}: self.hands.add(a['data-clock-hand'])
-  if 'data-world-location' in a: self.locations+=1
-  if 'data-clock-face' in a: self.face=True
+  if 'style' in a:self.inline_styles.append(a['style'])
   for k,v in a.items():
    if k.startswith('on'): raise ValueError('Inline event handlers are forbidden')
    if k in {'href','src','action','formaction','poster'}:
@@ -42,20 +38,26 @@ class Check(HTMLParser):
  def handle_startendtag(self,tag,attrs): self.handle_starttag(tag,attrs)
  def handle_endtag(self,tag):
   if tag.lower()=='script': self.in_script=False
+  if tag.lower()=='style': self.in_style=False
   if tag.lower()=='title': self.in_title=False
  def handle_data(self,data):
   if self.in_script:self.scripts.append(data)
+  if self.in_style:self.styles.append(data)
   if self.in_title:self.title.append(data)
 c=Check();c.feed(text);c.close()
+style='\n'.join(c.styles+c.inline_styles)
+if re.search(r'@import\b',style,re.I): raise ValueError('CSS imports are forbidden')
+for raw in re.findall(r'url\s*\(([^)]*)\)',style,re.I):
+ value=raw.strip().strip('\\"\\\'').strip()
+ if value and not value.startswith('#') and not re.match(r'^data:(?:image|font)/',value,re.I): raise ValueError('External CSS references are forbidden')
 script='\n'.join(c.scripts)
+if re.search(r'''["'][ \t]*(?:(?:https?|wss?|ftp):|//[^/\s])''',script,re.I): raise ValueError('External script URLs are forbidden')
 if not script.strip(): raise ValueError('An inline script is required')
 if not re.search(r'\b(?:new\s+)?Date\s*\(',script): raise ValueError('Clock must read the current time')
 if not re.search(r'\b(?:setInterval|setTimeout|requestAnimationFrame)\s*\(',script): raise ValueError('Clock must update continuously')
 if re.search(r'\b(?:fetch|XMLHttpRequest|WebSocket|EventSource|Worker|SharedWorker|importScripts)\b',script): raise ValueError('Network-capable APIs are forbidden')
 if not ''.join(c.title).strip(): raise ValueError('A document title is required')
-if c.hands!={'hour','minute','second'}: raise ValueError('Clock-hand test hooks are required')
-if c.locations<4: raise ValueError('At least four world-location test hooks are required')
-if not c.face: raise ValueError('A clock-face test hook is required')
+# The browser check validates hooks in the rendered DOM so inline scripts may create them.
 print('Valid self-contained world clock')
 `;
 
