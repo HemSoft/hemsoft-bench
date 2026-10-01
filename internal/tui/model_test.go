@@ -111,7 +111,7 @@ func TestResultsTableShowsLatestTestOutcomePerModel(t *testing.T) {
 	}
 }
 
-func TestResultsVOpensHTMLReportWithoutStartingWork(t *testing.T) {
+func TestResultsTwoOpensHTMLReportWithoutStartingWork(t *testing.T) {
 	calls := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -124,9 +124,9 @@ func TestResultsVOpensHTMLReportWithoutStartingWork(t *testing.T) {
 	m := demo()
 	m.screen = resultsScreen
 	m.client = &bench.Client{Endpoint: bench.Endpoint{URL: server.URL, Token: "test"}, HTTP: server.Client()}
-	m, cmd := press(m, "v")
+	m, cmd := press(m, "2")
 	if cmd == nil || !m.busy {
-		t.Fatal("v did not request the HTML report")
+		t.Fatal("2 did not request the HTML report")
 	}
 	next, _ := m.Update(cmd())
 	m = next.(Model)

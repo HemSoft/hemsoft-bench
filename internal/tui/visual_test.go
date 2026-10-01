@@ -57,17 +57,17 @@ func TestOpenPNGThenRateWithoutChangingCodingGrade(t *testing.T) {
 	m.screen = runScreen
 	m.watchID = j.ID
 	m.refreshDetail()
-	if !strings.Contains(ansi.Strip(m.View().Content), "Enter/v open PNG") {
+	if !strings.Contains(ansi.Strip(m.View().Content), "1 open PNG") {
 		t.Fatal("PNG action not selectable")
 	}
-	m, cmd := press(m, "enter")
+	m, cmd := press(m, "1")
 	if cmd == nil || !m.busy {
-		t.Fatal("did not request opening the image")
+		t.Fatal("1 did not request opening the image")
 	}
 	next, _ := m.Update(cmd())
 	m = next.(Model)
-	if !m.ratingPrompt || m.busy || !strings.Contains(ansi.Strip(m.View().Content), "Score from 0 to 10") {
-		t.Fatal("no prompt after opening PNG")
+	if !m.ratingPrompt || m.ratingKind != "image" || m.busy || !strings.Contains(ansi.Strip(m.View().Content), "RATE THE PNG") {
+		t.Fatal("no PNG prompt after opening image")
 	}
 	m, _ = press(m, "1")
 	m, _ = press(m, "0")
@@ -90,6 +90,56 @@ func TestOpenPNGThenRateWithoutChangingCodingGrade(t *testing.T) {
 		t.Fatal("coding grade changed")
 	}
 }
+func TestNumberKeysChoosePNGAndHTMLWhenBothVisualsNeedReview(t *testing.T) {
+	calls := []string{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls = append(calls, r.URL.Path)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+	m := demo()
+	m.client = &bench.Client{Endpoint: bench.Endpoint{URL: server.URL, Token: "test"}, HTTP: server.Client()}
+	j := m.state.Jobs[0]
+	j.Status = "needs_visual_review"
+	j.Template.Tasks = []string{"resilient-scheduler", "kangaroo-bike", "world-clock"}
+	j.Results = append(j.Results,
+		bench.Result{ID: "picture", Task: "kangaroo-bike", Status: "needs_visual_review", Artifact: &bench.VisualArtifact{PNGFile: "bike.png", PNGPublicFile: "bike.png", Published: true}},
+		bench.Result{ID: "clock", Task: "world-clock", Status: "needs_visual_review", Presentations: []bench.PresentationArtifact{{Kind: "webpage", File: "world-clock.html"}}},
+	)
+	m.screen, m.watchID = runScreen, j.ID
+	m.refreshDetail()
+	view := ansi.Strip(m.View().Content)
+	if !strings.Contains(view, "1 open PNG") || !strings.Contains(view, "2 open HTML results") {
+		t.Fatal("numbered visual actions are not shown: " + view)
+	}
+	unchanged, oldCmd := press(m, "v")
+	if oldCmd != nil || unchanged.busy || len(calls) != 0 {
+		t.Fatal("v must not choose between visual reviews")
+	}
+	m, cmd := press(m, "1")
+	if cmd == nil {
+		t.Fatal("1 did not open the PNG")
+	}
+	next, _ := m.Update(cmd())
+	m = next.(Model)
+	if !m.ratingPrompt || m.ratingKind != "image" || m.ratingResultID != "picture" {
+		t.Fatal("PNG rating prompt missing")
+	}
+	m, _ = press(m, "esc")
+	m, cmd = press(m, "2")
+	if cmd == nil {
+		t.Fatal("2 did not open the HTML results")
+	}
+	next, _ = m.Update(cmd())
+	m = next.(Model)
+	if !m.ratingPrompt || m.ratingKind != "webpage" || m.ratingResultID != "clock" {
+		t.Fatal("world-clock rating prompt missing")
+	}
+	if len(calls) != 2 || !strings.HasSuffix(calls[0], "/open-image") || calls[1] != "/results/open-html" {
+		t.Fatalf("unexpected calls: %v", calls)
+	}
+}
+
 func TestWorldClockOpensHTMLThenAcceptsSeparateRating(t *testing.T) {
 	calls := []string{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -105,16 +155,16 @@ func TestWorldClockOpensHTMLThenAcceptsSeparateRating(t *testing.T) {
 	j.Results = append(j.Results, bench.Result{ID: "clock", Task: "world-clock", Status: "needs_visual_review", Presentations: []bench.PresentationArtifact{{Kind: "webpage", File: "world-clock.html"}}})
 	m.screen, m.watchID = runScreen, j.ID
 	m.refreshDetail()
-	if _, kind := reviewableVisual(j); kind != "webpage" {
+	if _, kind := reviewableVisualTask(j, "world-clock"); kind != "webpage" {
 		t.Fatal("world clock is not reviewable")
 	}
-	m, cmd := press(m, "enter")
+	m, cmd := press(m, "2")
 	if cmd == nil {
-		t.Fatal("did not open HTML report")
+		t.Fatal("2 did not open HTML report")
 	}
 	next, _ := m.Update(cmd())
 	m = next.(Model)
-	if !m.ratingPrompt || m.ratingResultID != "clock" {
+	if !m.ratingPrompt || m.ratingKind != "webpage" || m.ratingResultID != "clock" || !strings.Contains(ansi.Strip(m.View().Content), "RATE THE WORLD CLOCK") {
 		t.Fatal("world-clock rating prompt missing")
 	}
 	m, _ = press(m, "9")
@@ -141,7 +191,7 @@ func TestRatingCanBeSkippedAndOlderSVGOnlyRunsHaveNoOpenAction(t *testing.T) {
 	if cmd != nil || m.ratingPrompt || m.ratingInput != "" || m.screen != runScreen {
 		t.Fatal("escape did not skip rating")
 	}
-	m, cmd = press(m, "enter")
+	m, cmd = press(m, "1")
 	if cmd != nil || m.busy {
 		t.Fatal("older run should not open a nonexistent PNG")
 	}
@@ -154,7 +204,7 @@ func TestCollidingCandidatePNGIsStillSelectable(t *testing.T) {
 	m.screen = runScreen
 	m.watchID = j.ID
 	m.refreshDetail()
-	if reviewableImage(j) == nil || !strings.Contains(ansi.Strip(m.View().Content), "Enter/v open PNG") {
+	if reviewableImage(j) == nil || !strings.Contains(ansi.Strip(m.View().Content), "1 open PNG") {
 		t.Fatal("colliding image should remain viewable")
 	}
 }
@@ -167,7 +217,7 @@ func TestSavedHumanRatingStaysSeparateFromCodingScore(t *testing.T) {
 	j.Results = append(j.Results, bench.Result{ID: "picture", Task: "kangaroo-bike", Status: "needs_visual_review", HumanScore: &score, Artifact: &bench.VisualArtifact{File: "bike.svg", PNGFile: "bike.png", PNGPublicFile: "bike.png", Published: true}})
 	j.Status = "needs_visual_review"
 	detail := m.runDetail(j)
-	for _, text := range []string{"60/60 hidden checks", "Visual rating: 0/10", "PNG: bike.png", "Open PNG with Windows"} {
+	for _, text := range []string{"60/60 hidden checks", "Visual rating: 0/10", "PNG: bike.png", "1 open PNG with Windows"} {
 		if !strings.Contains(detail, text) {
 			t.Fatalf("missing %q", text)
 		}

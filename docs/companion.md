@@ -20,7 +20,7 @@ A selection always starts exactly one model, even if older saved configuration i
 
 Choose **View Results** for the latest result from every provider, model, and thinking setup. Scheduler shows the latest Resilient Scheduler score out of 72. Bike and Clock show review state or saved ratings. Configured models remain visible before their first run. Enter opens the selected model's latest run without starting work.
 
-Press `v` from **View Results** to regenerate and open [the local HTML report](D:/github/HemSoft/hemsoft-bench/.local/reports/results.html). It shows the same result matrix followed by retained bike images and live World Clock pages in a responsive gallery. Use Grid or List to change the gallery layout and **Open large** to inspect an artifact.
+Press `2` from **View Results** to regenerate and open [the local HTML report](D:/github/HemSoft/hemsoft-bench/.local/reports/results.html). It shows the same result matrix followed by retained bike images and live World Clock pages in a responsive gallery. Use Grid or List to change the gallery layout and **Open large** to inspect an artifact.
 
 The report is a static local file. It embeds verified images and owned page source, contains no manager credentials, and needs no local web server. HTML candidates render in network-blocked sandbox frames and cannot access the report's origin.
 
@@ -44,9 +44,9 @@ Provider failures remain failures even when an interrupted solution passes its s
 | --- | --- |
 | Main menu | Up/Down selects; Enter opens |
 | Model picker | Up/Down selects one model; Enter starts it |
-| View Results | Up/Down selects; Enter opens the latest run; `v` opens the HTML report |
+| View Results | Up/Down selects; Enter opens the latest run; `1` opens its bike PNG; `2` opens the HTML report |
 | Previous runs | Up/Down selects; Enter opens; `d` requests deletion |
-| Progress/results | Enter or `v` opens the next visual for review; PgUp/PgDn scrolls; `d` requests deletion |
+| Progress/results | `1` opens the bike PNG; `2` opens HTML results for clock review; PgUp/PgDn scrolls; `d` requests deletion |
 | Active run | `c` asks to cancel; `y` confirms cancellation |
 | Any screen | Esc goes back; `q` disconnects |
 
@@ -59,7 +59,7 @@ Runs started through this interface always keep history for comparison. Selectin
 - [Saved state](D:/github/HemSoft/hemsoft-bench/.local/companion/state.json) contains model settings and job summaries. Its older internal `templates` schema remains compatible; that wording is not part of the UI.
 - [Manager diagnostics](D:/github/HemSoft/hemsoft-bench/.local/companion/daemon.log) records startup problems.
 - Each job owns a directory under `.local/managed-runs/`. The results screen shows the exact artifact path.
-- [The generated HTML report](D:/github/HemSoft/hemsoft-bench/.local/reports/results.html) is replaced each time you press `v`; it is a view of retained state, not a separate result database.
+- [The generated HTML report](D:/github/HemSoft/hemsoft-bench/.local/reports/results.html) is replaced each time you press `2`; it is a view of retained state, not a separate result database.
 - The connection file contains a private token. Do not share it.
 
 The legacy PowerShell runner remains separate. Its retention policy is unchanged. Older external/API callers can still use their existing saved configurations; the simplified UI only submits single-model runs with history enabled.
@@ -78,7 +78,7 @@ The visual tasks run after Resilient Scheduler and can also run alone from the C
 
 World Clock saves an owned `world-clock.html`. Static checks reject external resources and active embedding. Offline Chromium then confirms current hand angles, second-hand movement, four visible location hooks, no horizontal overflow, and a primary face that fits 1200×800 and 390×844 viewports. Passing those checks does not judge artistic quality. The report runs the page with scripts allowed but network, forms, frames, navigation, plugins, and report-origin access blocked.
 
-On a run's results screen, Enter or `v` opens the next unrated visual. Windows opens bike PNGs in the default app; clock pages open in the generated HTML report. Return to the terminal to enter a whole-number rating from 0 to 10 and press Enter, or press Esc to skip. Ratings stay with each result and can be changed by opening it again. They are not automatic art scores or coding grades.
+On a run's results screen, press `1` to open its bike PNG in the Windows default app. Press `2` to regenerate and open the HTML report for World Clock review. Return to the terminal to enter a whole-number rating from 0 to 10 and press Enter, or press Esc to skip. Ratings stay with each result and can be changed by opening it again. They are not automatic art scores or coding grades.
 
 Codex calls use SSE inside the benchmark project. All models allow up to two agent-level retries per consecutive transient failure sequence, using the same conversation and candidate sandbox. The original time, request and observed estimated-cost budgets still apply. Provider-level retries remain disabled; quota/authentication failures are not retried. Progress and task details show scheduled retries, and recovered interruptions leave usage/cost incomplete even if the task finishes successfully. Changed execution policies remain separate in CLI reports; TUI comparisons warn that settings/retries may differ.
 

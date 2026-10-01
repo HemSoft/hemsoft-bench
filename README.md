@@ -39,7 +39,7 @@ node src/cli.mjs setup
 .\bench.exe   # Open or reconnect to the dashboard
 ```
 
-The [companion guide](D:/github/HemSoft/hemsoft-bench/docs/companion.md) covers the three-choice menu: **Start a new run**, **View Results**, or **View previous runs**. Choose a model and press Enter to start immediately and watch progress. Results and comparisons appear when it finishes. From **View Results**, press `v` to open the generated HTML comparison and visual gallery. There is no start-review screen. New dashboard runs keep history for comparison. Closing the dashboard leaves jobs running. Existing PowerShell runs remain separate and untouched.
+The [companion guide](D:/github/HemSoft/hemsoft-bench/docs/companion.md) covers the three-choice menu: **Start a new run**, **View Results**, or **View previous runs**. Choose a model and press Enter to start immediately and watch progress. Results and comparisons appear when it finishes. From **View Results**, press `1` to review the selected run's bike PNG or `2` to open the generated HTML comparison and World Clock gallery. There is no start-review screen. New dashboard runs keep history for comparison. Closing the dashboard leaves jobs running. Existing PowerShell runs remain separate and untouched.
 
 ### One-command scripted run
 
@@ -119,7 +119,7 @@ node src/cli.mjs run openrouter-kimi-k3 resilient-scheduler --repeat 1 --execute
 node src/cli.mjs report
 ```
 
-The regular `bench.exe` model run executes Resilient Scheduler, Kangaroo Bike, and World Clock. The bike task creates `/workspace/bike.svg`; the harness validates it, renders a bounded PNG in a separate offline container, and publishes both in `.local/results/`. The clock task creates `/workspace/world-clock.html`; the harness checks self-containment, current hand angles, second-hand movement, named world locations, and desktop/mobile fit in networkless headless Chromium. Its owned page is embedded in the HTML report inside a sandboxed, network-blocked frame. Both visual tasks report `needs_visual_review`, not coding passes or automatic art scores. Press Enter or `v` on a run to open the next unrated visual, then enter an optional 0 to 10 rating. Ratings remain separate from coding grades.
+The regular `bench.exe` model run executes Resilient Scheduler, Kangaroo Bike, and World Clock. The bike task creates `/workspace/bike.svg`; the harness validates it, renders a bounded PNG in a separate offline container, and publishes both in `.local/results/`. The clock task creates `/workspace/world-clock.html`; the harness checks self-containment, current hand angles, second-hand movement, named world locations, and desktop/mobile fit in networkless headless Chromium. Its owned page is embedded in the HTML report inside a sandboxed, network-blocked frame. Both visual tasks report `needs_visual_review`, not coding passes or automatic art scores. Press `1` to open the run's bike PNG or `2` to open the HTML results for World Clock review, then enter an optional 0 to 10 rating for that visual. Ratings remain separate from coding grades.
 
 You can run either visual task directly with `kangaroo-bike` or `world-clock`. Named bike exports are never overwritten; collisions retain both candidates in the attempt folder. World-clock pages are always retained only in their owned managed-run folders. Deleting a managed run removes its visual artifacts after ownership and hash checks.
 

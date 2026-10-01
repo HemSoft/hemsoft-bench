@@ -67,7 +67,7 @@ type Model struct {
 	connected, busy, polling                              bool
 	cancelPrompt                                          bool
 	ratingPrompt                                          bool
-	ratingInput                                           string
+	ratingInput, ratingKind                               string
 	ratingJobID, ratingResultID                           string
 	deleteTarget                                          *bench.Job
 	removed                                               map[string]bool
@@ -131,19 +131,21 @@ func (m Model) scoreImage(score int) tea.Cmd {
 	}
 }
 func visualTask(task string) bool { return task == "kangaroo-bike" || task == "world-clock" }
-func reviewableVisual(j *bench.Job) (*bench.Result, string) {
+func reviewableVisualTask(j *bench.Job, task string) (*bench.Result, string) {
 	if j == nil || !bench.Terminal(j.Status) {
 		return nil, ""
 	}
 	var rated *bench.Result
-	var ratedKind string
 	for i := len(j.Results) - 1; i >= 0; i-- {
 		r := &j.Results[i]
+		if r.Task != task || r.ID == "" {
+			continue
+		}
 		kind := ""
-		if r.Task == "kangaroo-bike" && r.ID != "" && r.Artifact != nil && (r.Artifact.PNGPublicFile != "" || r.Artifact.PNGOwnedFile != "") {
+		if task == "kangaroo-bike" && r.Artifact != nil && (r.Artifact.PNGPublicFile != "" || r.Artifact.PNGOwnedFile != "") {
 			kind = "image"
 		}
-		if r.Task == "world-clock" && r.ID != "" {
+		if task == "world-clock" {
 			for _, presentation := range r.Presentations {
 				if presentation.Kind == "webpage" {
 					kind = "webpage"
@@ -151,23 +153,27 @@ func reviewableVisual(j *bench.Job) (*bench.Result, string) {
 				}
 			}
 		}
-		if kind != "" {
-			if r.HumanScore == nil {
-				return r, kind
-			}
-			if rated == nil {
-				rated, ratedKind = r, kind
-			}
+		if kind == "" {
+			continue
+		}
+		if r.HumanScore == nil {
+			return r, kind
+		}
+		if rated == nil {
+			rated = r
 		}
 	}
-	return rated, ratedKind
+	if rated == nil {
+		return nil, ""
+	}
+	if task == "kangaroo-bike" {
+		return rated, "image"
+	}
+	return rated, "webpage"
 }
 func reviewableImage(j *bench.Job) *bench.Result {
-	r, kind := reviewableVisual(j)
-	if kind == "image" {
-		return r
-	}
-	return nil
+	r, _ := reviewableVisualTask(j, "kangaroo-bike")
+	return r
 }
 func (m *Model) filterDeleted() {
 	jobs := make([]*bench.Job, 0, len(m.state.Jobs))
@@ -312,7 +318,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.ratingJobID, m.ratingResultID = v.JobID, v.ResultID
-		m.ratingInput = ""
+		m.ratingInput, m.ratingKind = "", "image"
 		m.ratingPrompt = true
 		m.err = ""
 		return m, nil
@@ -326,7 +332,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.success = "Opened HTML results."
 		if v.JobID != "" && v.ResultID != "" {
 			m.ratingJobID, m.ratingResultID = v.JobID, v.ResultID
-			m.ratingInput = ""
+			m.ratingInput, m.ratingKind = "", "webpage"
 			m.ratingPrompt = true
 		}
 		return m, nil
@@ -338,7 +344,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.ratingPrompt = false
 		m.ratingJobID, m.ratingResultID = "", ""
-		m.ratingInput = ""
+		m.ratingInput, m.ratingKind = "", ""
 		// Show the confirmed rating immediately, without waiting for the next poll.
 		for _, j := range m.state.Jobs {
 			if j.ID == v.JobID {
@@ -366,7 +372,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.ratingPrompt {
 				m.ratingPrompt = false
 				m.ratingJobID, m.ratingResultID = "", ""
-				m.ratingInput = ""
+				m.ratingInput, m.ratingKind = "", ""
 				m.err = ""
 			} else if m.deleteTarget != nil {
 				m.deleteTarget = nil
@@ -473,25 +479,36 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case resultsScreen:
 			rows := m.resultRows()
+			var selectedJob *bench.Job
+			if len(rows) > 0 {
+				selectedJob = rows[clamp(m.resultsCursor, 0, len(rows)-1)].latest
+			}
 			switch key {
 			case "up", "k":
 				m.resultsCursor = clamp(m.resultsCursor-1, 0, len(rows)-1)
 			case "down", "j":
 				m.resultsCursor = clamp(m.resultsCursor+1, 0, len(rows)-1)
-			case "v":
+			case "1":
+				if visual, _ := reviewableVisualTask(selectedJob, "kangaroo-bike"); visual != nil && m.connected {
+					m.busy = true
+					m.err = ""
+					return m, m.openImage(selectedJob.ID, visual.ID)
+				}
+			case "2":
 				if m.connected {
 					m.busy = true
 					m.err = ""
+					if visual, _ := reviewableVisualTask(selectedJob, "world-clock"); visual != nil {
+						return m, m.openResultsHTML(selectedJob.ID, visual.ID)
+					}
 					return m, m.openResultsHTML()
 				}
 			case "enter":
-				if len(rows) > 0 {
-					if j := rows[clamp(m.resultsCursor, 0, len(rows)-1)].latest; j != nil {
-						m.watchID = j.ID
-						m.watchBatch = ""
-						m.screen = runScreen
-						m.detail.GotoTop()
-					}
+				if selectedJob != nil {
+					m.watchID = selectedJob.ID
+					m.watchBatch = ""
+					m.screen = runScreen
+					m.detail.GotoTop()
 				}
 			}
 		case historyScreen:
@@ -510,15 +527,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case runScreen:
 			switch key {
-			case "enter", "v":
+			case "1":
 				if j := m.watchedJob(); j != nil && m.connected {
-					if visual, kind := reviewableVisual(j); visual != nil {
+					if visual, _ := reviewableVisualTask(j, "kangaroo-bike"); visual != nil {
 						m.busy = true
 						m.err = ""
-						if kind == "webpage" {
-							return m, m.openResultsHTML(j.ID, visual.ID)
-						}
 						return m, m.openImage(j.ID, visual.ID)
+					}
+				}
+			case "2":
+				if j := m.watchedJob(); j != nil && m.connected {
+					if visual, _ := reviewableVisualTask(j, "world-clock"); visual != nil {
+						m.busy = true
+						m.err = ""
+						return m, m.openResultsHTML(j.ID, visual.ID)
 					}
 				}
 			case "pgdown":
@@ -785,7 +807,7 @@ func (m Model) runDetail(j *bench.Job) string {
 			if r.Artifact.PNGFile != "" {
 				lines = append(lines, "  PNG: "+clean(r.Artifact.PNGFile))
 				if r.Artifact.PNGPublicFile != "" || r.Artifact.PNGOwnedFile != "" {
-					lines = append(lines, selected.Render("  > Open PNG with Windows (Enter or v), then rate 0-10"))
+					lines = append(lines, selected.Render("  > 1 open PNG with Windows, then rate 0-10"))
 				}
 			}
 			if r.Artifact.Collision {
@@ -793,7 +815,7 @@ func (m Model) runDetail(j *bench.Job) string {
 			}
 		}
 		if len(r.Presentations) > 0 {
-			lines = append(lines, "  Live webpage in the HTML results report.", selected.Render("  > Open HTML results (Enter or v), then rate 0-10"))
+			lines = append(lines, "  Live webpage in the HTML results report.", selected.Render("  > 2 open HTML results, then rate the clock 0-10"))
 		}
 		if r.HumanScore != nil && !rated {
 			lines = append(lines, fmt.Sprintf("  Your visual rating: %d/10", *r.HumanScore))
@@ -939,24 +961,36 @@ func (m Model) View() tea.View {
 		footer = "Up/Down select  Enter START  Esc back  q exit"
 	case resultsScreen:
 		body = m.resultsView()
-		footer = "v HTML view  Up/Down select  Enter latest run  Esc home  q exit"
+		footer = "1 open PNG  2 open HTML results  Up/Down select  Enter latest run  Esc home  q exit"
 	case historyScreen:
 		body = m.historyView()
 		footer = "Up/Down select  Enter open  d delete  Esc home  q exit"
 	case runScreen:
 		body = m.detail.View()
 		footer = "PgUp/PgDn scroll  d delete  Esc home  q exit"
-		if _, kind := reviewableVisual(m.watchedJob()); kind == "image" {
-			footer = "Enter/v open PNG  PgUp/PgDn scroll  d delete  Esc home  q exit"
-		} else if kind == "webpage" {
-			footer = "Enter/v open HTML  PgUp/PgDn scroll  d delete  Esc home  q exit"
-		}
-		if j := m.watchedJob(); j != nil && !bench.Terminal(j.Status) {
+		if j := m.watchedJob(); j != nil && bench.Terminal(j.Status) {
+			bike, _ := reviewableVisualTask(j, "kangaroo-bike")
+			clock, _ := reviewableVisualTask(j, "world-clock")
+			switch {
+			case bike != nil && clock != nil:
+				footer = "1 open PNG  2 open HTML results  PgUp/PgDn scroll  d delete  Esc home  q exit"
+			case bike != nil:
+				footer = "1 open PNG  PgUp/PgDn scroll  d delete  Esc home  q exit"
+			case clock != nil:
+				footer = "2 open HTML results  PgUp/PgDn scroll  d delete  Esc home  q exit"
+			}
+		} else if j != nil {
 			footer = "c cancel   PgDn scroll   Esc home   q disconnect"
 		}
 	}
 	if m.ratingPrompt {
-		body = accent.Render("RATE THE PNG") + "\n\nThe image has opened in your Windows default app. View it there, then return here.\n\nScore from 0 to 10: " + m.ratingInput + "_\n\nThis is your visual rating only. It does not change the coding grade."
+		title := "RATE THE PNG"
+		guidance := "The image has opened in your Windows default app. View it there, then return here."
+		if m.ratingKind == "webpage" {
+			title = "RATE THE WORLD CLOCK"
+			guidance = "The HTML results have opened in your browser. Review the live clock there, then return here."
+		}
+		body = accent.Render(title) + "\n\n" + guidance + "\n\nScore from 0 to 10: " + m.ratingInput + "_\n\nThis is your visual rating only. It does not change the coding grade."
 		footer = "Type 0-10   Enter save   Esc skip   q exit"
 	}
 	if m.cancelPrompt {
