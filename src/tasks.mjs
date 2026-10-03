@@ -1,5 +1,4 @@
-import {isDeepStrictEqual} from 'node:util';
-import {SCHEDULER_TASK_ID,schedulerCases,schedulerAnswers} from './scheduler-task.mjs';
+import {SCHEDULER_TASK_ID,schedulerCases,schedulerAnswers,schedulerAnswerMatches} from './scheduler-task.mjs';
 
 export {SCHEDULER_TASK_ID};
 export const TASK_IDS=[SCHEDULER_TASK_ID];
@@ -18,6 +17,6 @@ export function expectedAnswers(id,cases=taskCases(id)){
 export function scoreAnswers(expected,actual){
   if(!Array.isArray(actual)||actual.length!==expected.length)return {passed:0,total:expected.length,success:false,formatError:'Expected one answer per case.'};
   const normalized=JSON.parse(JSON.stringify(actual));
-  const passed=expected.filter((answer,i)=>isDeepStrictEqual(answer,normalized[i])).length;
+  const passed=expected.filter((answer,i)=>schedulerAnswerMatches(normalized[i],answer)).length;
   return {passed,total:expected.length,success:passed===expected.length};
 }

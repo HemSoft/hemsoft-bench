@@ -191,6 +191,36 @@ async function prepareScheduler(box,bundle){
   await box.file('write',{path:'_runner.py',content:await readFile(join(root,'tasks',SCHEDULER_TASK_ID,'runner.py'),'utf8')});
 }
 
+function canonicalBlockedGroups(answer){
+  if(!answer||!Array.isArray(answer.timeline))return null;
+  const timeline=[];
+  for(let i=0;i<answer.timeline.length;){
+    const event=answer.timeline[i];
+    if(event?.event!=='blocked'){timeline.push(event);i++;continue;}
+    let end=i+1;
+    while(end<answer.timeline.length&&answer.timeline[end]?.event==='blocked'&&answer.timeline[end].at===event.at)end++;
+    const group=answer.timeline.slice(i,end),positions=new Map(group.map((e,n)=>[e.job,n]));
+    if(positions.size!==group.length)return null;
+    // A dependency must become blocked before its dependents. "cycle" is the
+    // contract's cycle sentinel, not a dependency notification to wait for.
+    for(let n=0;n<group.length;n++){
+      const dependency=group[n].dependency;
+      if(dependency!=='cycle'&&positions.has(dependency)&&positions.get(dependency)>=n)return null;
+    }
+    // Propagation has no specified tie order for independent notifications.
+    // Never move a block across another event type or timestamp.
+    timeline.push(...group.sort((a,b)=>compareText(a.job,b.job)));
+    i=end;
+  }
+  return {...answer,timeline};
+}
+
+export function schedulerAnswerMatches(actual,expected){
+  if(isDeepStrictEqual(actual,expected))return true;
+  const a=canonicalBlockedGroups(actual),e=canonicalBlockedGroups(expected);
+  return a!==null&&e!==null&&isDeepStrictEqual(a,e);
+}
+
 export async function gradeScheduler(image,bundle,cases=schedulerCases()){
   const box=await new Sandbox(image).start();
   try{
@@ -199,7 +229,7 @@ export async function gradeScheduler(image,bundle,cases=schedulerCases()){
     const output=await checked('docker',['exec','-i',box.name,'timeout','45','python','-I','/workspace/_runner.py'],{input,timeoutMs:55000,maxBytes:8*1024*1024});
     const actual=JSON.parse(output),expected=schedulerAnswers(cases);
     if(!Array.isArray(actual)||actual.length!==expected.length)throw new Error('Runner must return one answer per case.');
-    let passed=0;for(let i=0;i<expected.length;i++)if(isDeepStrictEqual(actual[i],expected[i]))passed++;
+    let passed=0;for(let i=0;i<expected.length;i++)if(schedulerAnswerMatches(actual[i],expected[i]))passed++;
     return {passed,total:expected.length,success:passed===expected.length};
   }finally{await box.dispose();}
 }
