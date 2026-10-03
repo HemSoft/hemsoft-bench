@@ -9,6 +9,8 @@ const MAX_HTML=2*1024*1024;
 const HTML_CHECK=String.raw`
 import sys,re
 from html.parser import HTMLParser
+# Validation failures must retain their reason within the bounded result error.
+sys.tracebacklimit=0
 p='/workspace/world-clock.html'
 data=open(p,'rb').read(2097153)
 if not data or len(data)>2097152: raise ValueError('HTML must be 1 byte to 2 MiB')
@@ -31,10 +33,14 @@ class Check(HTMLParser):
   if 'style' in a:self.inline_styles.append(a['style'])
   for k,v in a.items():
    if k.startswith('on'): raise ValueError('Inline event handlers are forbidden')
-   if k in {'href','src','action','formaction','poster'}:
+   if k in {'href','xlink:href','src','action','formaction','poster'}:
     value=v.strip()
-    if value and not value.startswith('#') and not (k in {'src','poster'} and re.match(r'^data:(?:image|font)/',value,re.I)):
-     raise ValueError('External references are forbidden')
+    # Resource hrefs, including favicons and inline SVG images, may embed assets.
+    # Navigation hrefs and form targets must not gain the same exception.
+    asset=k in {'src','poster'} or (k in {'href','xlink:href'} and tag in {'link','image','feimage'})
+    embedded=asset and re.match(r'^data:(?:image|font)/',value,re.I)
+    if value and not value.startswith('#') and not embedded:
+     raise ValueError('External references are forbidden: '+tag+'.'+k)
  def handle_startendtag(self,tag,attrs): self.handle_starttag(tag,attrs)
  def handle_endtag(self,tag):
   if tag.lower()=='script': self.in_script=False
@@ -51,7 +57,11 @@ for raw in re.findall(r'url\s*\(([^)]*)\)',style,re.I):
  value=raw.strip().strip('\\"\\\'').strip()
  if value and not value.startswith('#') and not re.match(r'^data:(?:image|font)/',value,re.I): raise ValueError('External CSS references are forbidden')
 script='\n'.join(c.scripts)
-if re.search(r'''["'][ \t]*(?:(?:https?|wss?|ftp):|//[^/\s])''',script,re.I): raise ValueError('External script URLs are forbidden')
+# XML namespace identifiers name vocabularies; createElementNS does not fetch them.
+# Permit only complete, exact namespace literals, not resource URLs sharing a prefix.
+namespaces={'http://www.w3.org/2000/svg','http://www.w3.org/1999/xhtml','http://www.w3.org/1999/xlink'}
+for match in re.finditer(r'''(["'])[ \t]*((?:(?:https?|wss?|ftp):|//[^/\s])[^"'\s]*)''',script,re.I):
+ if match.group(2) not in namespaces or script[match.end():match.end()+1]!=match.group(1): raise ValueError('External script URLs are forbidden')
 if not script.strip(): raise ValueError('An inline script is required')
 if not re.search(r'\b(?:new\s+)?Date\s*\(',script): raise ValueError('Clock must read the current time')
 if not re.search(r'\b(?:setInterval|setTimeout|requestAnimationFrame)\s*\(',script): raise ValueError('Clock must update continuously')
@@ -105,8 +115,10 @@ try:
  if len(locations)<4: errors.append('world locations are not visibly named')
  frame=driver.execute_cdp_cmd('Page.getFrameTree',{})['frameTree']['frame']['id']
  context=driver.execute_cdp_cmd('Page.createIsolatedWorld',{'frameId':frame,'worldName':'hemsoft-check','grantUniveralAccess':False})['executionContextId']
- content_width=driver.execute_cdp_cmd('Runtime.evaluate',{'expression':'document.documentElement.scrollWidth','contextId':context,'returnByValue':True})['result']['value']
- if content_width>width+2: errors.append('page scrolls horizontally ('+str(round(content_width))+'px for '+str(width)+'px viewport)')
+ # A clipped decorative layer can increase scrollWidth without creating user-scrollable overflow.
+ # Read effective viewport clipping in the isolated world; the face fit checks above still apply.
+ bounds=driver.execute_cdp_cmd('Runtime.evaluate',{'expression':"(()=>{const root=document.documentElement;const overflow=getComputedStyle(root).overflowX;return {width:root.scrollWidth,overflow:overflow==='visible'&&document.body?getComputedStyle(document.body).overflowX:overflow}})()",'contextId':context,'returnByValue':True})['result']['value']
+ if bounds['width']>width+2 and bounds['overflow'] not in {'hidden','clip'}: errors.append('page scrolls horizontally ('+str(round(bounds['width']))+'px for '+str(width)+'px viewport)')
  print(json.dumps({'ok':not errors,'errors':errors}))
 finally:
  driver.quit()

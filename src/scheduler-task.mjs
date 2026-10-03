@@ -2,6 +2,7 @@ import {createHash} from 'node:crypto';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {isDeepStrictEqual} from 'node:util';
 import {Sandbox} from './sandbox.mjs';
 import {checked} from './process.mjs';
 
@@ -198,7 +199,7 @@ export async function gradeScheduler(image,bundle,cases=schedulerCases()){
     const output=await checked('docker',['exec','-i',box.name,'timeout','45','python','-I','/workspace/_runner.py'],{input,timeoutMs:55000,maxBytes:8*1024*1024});
     const actual=JSON.parse(output),expected=schedulerAnswers(cases);
     if(!Array.isArray(actual)||actual.length!==expected.length)throw new Error('Runner must return one answer per case.');
-    let passed=0;for(let i=0;i<expected.length;i++)if(JSON.stringify(actual[i])===JSON.stringify(expected[i]))passed++;
+    let passed=0;for(let i=0;i<expected.length;i++)if(isDeepStrictEqual(actual[i],expected[i]))passed++;
     return {passed,total:expected.length,success:passed===expected.length};
   }finally{await box.dispose();}
 }

@@ -1,4 +1,4 @@
-  HEMSOFT BENCH                                        
+  HEMSOFT BENCH  v0.1.1                                
                                                        
   PREVIOUS RUNS                                        
   Choose a run to see its progress or results.         

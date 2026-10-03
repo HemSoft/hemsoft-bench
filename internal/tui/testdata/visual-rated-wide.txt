@@ -1,4 +1,4 @@
-  HEMSOFT BENCH                                                                                                         
+  HEMSOFT BENCH  v0.1.1                                                                                                 
                                                                                                                         
   RUN RESULTS                                                                                                           
   openai-codex / gpt-5.6-sol / high                                                                                     
@@ -6,8 +6,9 @@
                                                                                                                         
   Check pass rate: 100.0% (60/60 hidden checks)                                                                         
   Coding tests passed: 1/1.                                                                                             
-  Visual rating: 5/10                                                                                                   
+  Visuals: 1/1 rated.                                                                                                   
   Scope: 1 coding task; difficulty uncalibrated.                                                                        
+  Total: 0m 00s | cost unknown                                                                                          
                                                                                                                         
   COMPARE RECORDED RESULTS                                                                                              
   Settings and retries may differ; not a ranking.                                                                       
@@ -25,10 +26,9 @@
     █████████████████████ ████████████████████                                                                          
                                                                                                                         
   resilient-scheduler  passed                                                                                           
-    60/60 checks | 0m 00s                                                                                               
-    cost unknown                                                                                                        
+    60/60 checks | 0m 00s | cost unknown                                                                                
                                                                                                                         
   kangaroo-bike  5/10                                                                                                   
-    not graded | 0m 00s                                                                                                 
+    0m 00s | cost unknown                                                                                               
   Rating saved.                                                                                                         
   PgUp/PgDn scroll  d delete  Esc home  q exit                                                                          

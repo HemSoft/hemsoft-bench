@@ -18,7 +18,7 @@ func TestSuccessfulStreamRecoveryRetainsGradeAndQualifiedCost(t *testing.T) {
 	}
 	j.Results[0].Metrics = &metrics
 	text := m.runDetail(j)
-	for _, want := range []string{"Check pass rate: 100.0%", "Retries scheduled: 1; recovered interruptions: 1.", "observed, incomplete", "Settings and retries may differ"} {
+	for _, want := range []string{"Check pass rate: 100.0%", "Provider retries: 1; recovered: 1.", "observed, incomplete"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("missing %q in %s", want, text)
 		}

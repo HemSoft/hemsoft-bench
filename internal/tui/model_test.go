@@ -14,6 +14,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	hemsoftbench "github.com/HemSoft/hemsoft-bench"
 	"github.com/HemSoft/hemsoft-bench/internal/bench"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -64,6 +65,18 @@ func TestTwoTaskRunStartsWithoutExtraNavigation(t *testing.T) {
 		t.Fatal("visual task must not add a separate model choice")
 	}
 }
+func TestHeaderShowsEmbeddedApplicationVersion(t *testing.T) {
+	for _, width := range []int{120, 80, 55, 40} {
+		m := demo()
+		m.width = width
+		view := ansi.Strip(m.View().Content)
+		header := strings.SplitN(view, "\n", 2)[0]
+		if !strings.Contains(header, "v"+hemsoftbench.Version) {
+			t.Fatalf("header at width %d has no application version: %q", width, header)
+		}
+	}
+}
+
 func TestHomeHasResultsBetweenStartAndHistory(t *testing.T) {
 	m := demo()
 	view := ansi.Strip(m.View().Content)
@@ -308,11 +321,14 @@ func TestBubbleTeaProgramDisconnectsWithoutMutation(t *testing.T) {
 	}
 }
 func TestLayoutsAndSnapshots(t *testing.T) {
-	for _, screen := range []string{homeScreen, modelScreen, resultsScreen, historyScreen, runScreen, "completed", "visual-results", "visual-rated", "interrupted", "empty-history", "delete"} {
+	for _, screen := range []string{homeScreen, modelScreen, resultsScreen, historyScreen, runScreen, "completed", "visual-results", "visual-rated", "mixed-results", "interrupted", "empty-history", "delete"} {
 		for _, size := range [][2]int{{120, 36}, {80, 28}, {55, 20}} {
 			name := screen + "-" + stringSize(size[0])
 			t.Run(name, func(t *testing.T) {
 				m := demo()
+				if screen == "mixed-results" {
+					m = mixedResultsModel()
+				}
 				m.width, m.height = size[0], size[1]
 				m.screen = screen
 				if screen == runScreen || screen == "completed" || screen == "visual-results" || screen == "visual-rated" {
@@ -335,6 +351,10 @@ func TestLayoutsAndSnapshots(t *testing.T) {
 						m.success = "Rating saved."
 					}
 					j.Results = []bench.Result{{Task: "resilient-scheduler", Status: "passed", Grade: &bench.Grade{Passed: 60, Total: 60, Success: true}}, visual}
+				}
+				if screen == "mixed-results" {
+					m.screen = runScreen
+					m.watchID = m.state.Jobs[0].ID
 				}
 				if screen == "interrupted" {
 					m.screen = runScreen

@@ -84,6 +84,25 @@ test('fragment-local use elements validate and render offline',async()=>{
   assert.equal((await readFile(pngFile)).subarray(0,8).toString('hex'),'89504e470d0a1a0a');
  }finally{await rm(file,{force:true});await rm(pngFile,{force:true});}
 });
+test('fragment-local XLink use elements validate and render offline',async()=>{
+ const model='offline-'+randomUUID(),file=join(root,'.local/results',visualFilename({model})),pngFile=file.replace(/\.svg$/,'.png');
+ const reused='<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 100 100"><defs><g id="wheel"><circle r="22"/></g></defs><use xlink:href="#wheel" transform="translate(28 50)"/><use xlink:href="#wheel" transform="translate(72 50)"/></svg>';
+ try{
+  const {result}=await offlineAttempt(randomUUID(),model,reused);
+  assert.equal(result.status,'needs_visual_review',result.error);
+  assert.equal(await readFile(file,'utf8'),reused);
+  assert.equal((await readFile(pngFile)).subarray(0,8).toString('hex'),'89504e470d0a1a0a');
+ }finally{await rm(file,{force:true});await rm(pngFile,{force:true});}
+});
+for(const target of ['https://example.invalid/wheel.svg#wheel','#missing','#wheel']){
+ test(`invalid XLink use is rejected with a specific validation reason: ${target}`,async()=>{
+  const source=`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><defs><g id="wheel"><use xlink:href="${target}"/></g></defs><use xlink:href="#wheel"/></svg>`;
+  const {result}=await offlineAttempt(randomUUID(),'offline-'+randomUUID(),source);
+  assert.equal(result.status,'missing_or_invalid_submission');
+  assert.ok(result.validationError,'validation reason must be retained');
+  assert.match(result.validationError,/external reference|Missing local SVG reference|Cyclic local SVG reference/i);
+ });
+}
 test('a subsequent run never overwrites either model-named image, and retains both candidates',async()=>{
  const model='offline-'+randomUUID(),file=join(root,'.local/results',visualFilename({model})),pngFile=file.replace(/\.svg$/,'.png');
  try{
@@ -106,7 +125,7 @@ test('an existing PNG blocks publication of the SVG, leaving the old PNG untouch
   await assert.rejects(stat(file),{code:'ENOENT'});
  }finally{await rm(file,{force:true});await rm(pngFile,{force:true});}
 });
-for(const [name,source] of [['script','<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'],['external','<svg xmlns="http://www.w3.org/2000/svg"><image href="https://example.invalid/x"/></svg>'],['external-use','<svg xmlns="http://www.w3.org/2000/svg"><use href="https://example.invalid/x.svg#shape"/></svg>'],['missing-use','<svg xmlns="http://www.w3.org/2000/svg"><use href="#missing"/></svg>'],['cyclic-use','<svg xmlns="http://www.w3.org/2000/svg"><defs><g id="loop"><use href="#loop"/></g></defs><use href="#loop"/></svg>'],['doctype','<!DOCTYPE svg [<!ENTITY e SYSTEM "file:///etc/passwd">]><svg xmlns="http://www.w3.org/2000/svg"/>'],['invalid','<svg xmlns="http://www.w3.org/2000/svg">'],['css-import','<svg xmlns="http://www.w3.org/2000/svg"><style>@import "https://example.invalid/p.css";</style></svg>'],['css-remote','<svg xmlns="http://www.w3.org/2000/svg"><style>.x{fill:url(https://example.invalid/img)}</style></svg>']]){
+for(const [name,source] of [['script','<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'],['external','<svg xmlns="http://www.w3.org/2000/svg"><image href="https://example.invalid/x"/></svg>'],['external-use','<svg xmlns="http://www.w3.org/2000/svg"><use href="https://example.invalid/x.svg#shape"/></svg>'],['foreign-xlink','<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="https://example.invalid/xlink"><defs><circle id="wheel"/></defs><use xlink:href="#wheel"/></svg>'],['mixed-external-use','<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><defs><circle id="wheel"/></defs><use href="#wheel" xlink:href="https://example.invalid/x.svg#wheel"/></svg>'],['missing-use','<svg xmlns="http://www.w3.org/2000/svg"><use href="#missing"/></svg>'],['cyclic-use','<svg xmlns="http://www.w3.org/2000/svg"><defs><g id="loop"><use href="#loop"/></g></defs><use href="#loop"/></svg>'],['doctype','<!DOCTYPE svg [<!ENTITY e SYSTEM "file:///etc/passwd">]><svg xmlns="http://www.w3.org/2000/svg"/>'],['invalid','<svg xmlns="http://www.w3.org/2000/svg">'],['css-import','<svg xmlns="http://www.w3.org/2000/svg"><style>@import "https://example.invalid/p.css";</style></svg>'],['css-remote','<svg xmlns="http://www.w3.org/2000/svg"><style>.x{fill:url(https://example.invalid/img)}</style></svg>']]){
  test(`invalid ${name} SVG is not published`,async()=>{
   const model='offline-'+randomUUID(),file=join(root,'.local/results',visualFilename({model}));
   const {result,retainedCandidate}=await offlineAttempt(randomUUID(),model,source);

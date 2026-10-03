@@ -57,6 +57,81 @@ for(const name of ['New York','London','Tokyo','Sydney']){
  assert.equal(source,dynamic);
 });
 
+test('world clock accepts SVG namespace identifiers in inline JavaScript',async()=>{
+ const svg=valid.replace('<script>',`<script>
+const ns='http://www.w3.org/2000/svg';
+const dial=document.createElementNS(ns,'svg');
+dial.setAttribute('viewBox','0 0 20 20');dial.style.width='20px';dial.style.height='20px';
+const circle=document.createElementNS(ns,'circle');
+circle.setAttribute('cx','10');circle.setAttribute('cy','10');circle.setAttribute('r','8');
+dial.append(circle);document.querySelector('h1').append(dial);
+const xhtml="http://www.w3.org/1999/xhtml",xlink='http://www.w3.org/1999/xlink';
+`);
+ const {execution,result,source}=await attempt(svg);
+ assert.equal(execution.code,0,execution.stderr);
+ assert.equal(result.status,'needs_visual_review',result.error);
+ assert.equal(source,svg);
+});
+
+for(const url of ['https://example.com/clock.js','//example.com/clock.js','http://www.w3.org/2000/svg/clock.js']){
+ test(`world clock rejects resource URL literals including namespace lookalikes: ${url}`,async()=>{
+  const invalid=valid.replace('<script>',`<script>const resource='${url}';`);
+  const {result,source}=await attempt(invalid);
+  assert.equal(result.status,'missing_or_invalid_submission');
+  assert.match(result.error,/External script URLs are forbidden/);
+  assert.equal(source,invalid);
+ });
+}
+
+test('world clock accepts an embedded SVG favicon and SVG image href',async()=>{
+ const image="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='12'/%3E%3C/svg%3E";
+ const embedded=valid
+  .replace('</head>',`<link rel="icon" href="${image}"></head>`)
+  .replace('<h1>World Clock</h1>',`<h1>World Clock <svg width="20" height="20"><image width="20" height="20" href="${image}"/></svg></h1>`);
+ const {execution,result,source}=await attempt(embedded);
+ assert.equal(execution.code,0,execution.stderr);
+ assert.equal(result.status,'needs_visual_review',result.error);
+ assert.equal(source,embedded);
+});
+
+for(const markup of [
+ '<link rel="icon" href="https://example.com/favicon.svg">',
+ '<link rel="icon" href="data:text/html,%3Cscript%3Ealert(1)%3C/script%3E">',
+ '<svg><image href="//example.com/image.svg"/></svg>',
+ '<svg><image xlink:href="https://example.com/image.svg"/></svg>',
+ '<a href="data:image/png;base64,aGVsbG8=">Navigate</a>',
+]){
+ test(`world clock rejects external or non-asset references: ${markup}`,async()=>{
+  const {result}=await attempt(valid.replace('</head>',`${markup}</head>`));
+  assert.equal(result.status,'missing_or_invalid_submission');
+  assert.match(result.error,/External references are forbidden/);
+ });
+}
+
+for(const clipping of ['body{overflow-x:hidden}','html{overflow-x:clip}']){
+ test(`world clock permits viewport-clipped decoration: ${clipping}`,async()=>{
+  const clipped=valid.replace('</style>',`${clipping}.decoration{position:absolute;left:0;top:0;width:430px;height:1px;pointer-events:none}</style>`)
+   .replace('<body>','<body><div class="decoration" aria-hidden="true"></div>');
+  const {result}=await attempt(clipped);
+  assert.equal(result.status,'needs_visual_review',result.error);
+ });
+}
+
+test('world clock rejects genuine horizontal overflow',async()=>{
+ const overflowing=valid.replace('</style>','.decoration{position:absolute;left:0;top:0;width:430px;height:1px}</style>')
+  .replace('<body>','<body><div class="decoration"></div>');
+ const {result}=await attempt(overflowing);
+ assert.equal(result.status,'missing_or_invalid_submission');
+ assert.match(result.error,/390x844: page scrolls horizontally/);
+});
+
+test('world clock cannot hide an oversized primary face behind viewport clipping',async()=>{
+ const clipped=valid.replace('</style>','body{overflow-x:hidden}.clock{width:440px;height:440px;margin:0}</style>');
+ const {result}=await attempt(clipped);
+ assert.equal(result.status,'missing_or_invalid_submission');
+ assert.match(result.error,/390x844: primary clock does not fit viewport/);
+});
+
 test('world clock rejects a hand that does not keep moving',async()=>{
  const stopped=valid.replace('setInterval(tick,250)','setInterval(()=>{},250)');
  const {execution,result,source}=await attempt(stopped);

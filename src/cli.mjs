@@ -209,9 +209,11 @@ async function executeTrial(model,task,limits,{selfTest=false,progress=false,pro
       catch(error){
         const candidate=join(directory,'bike.svg');
         await writeFile(candidate,svg,{flag:'wx',mode:0o600});
-        const unsupported=String(error.message).match(/ValueError: Unsupported SVG element: ([A-Za-z][A-Za-z0-9]{0,63})/);
+        const reason=String(error.message).match(/(?:ValueError|ParseError): ([^\r\n]+)/)?.[1]?.slice(0,240);
+        const unsupported=reason?.match(/^Unsupported SVG element: ([A-Za-z][A-Za-z0-9]{0,63})$/);
         result.status='missing_or_invalid_submission';
-        result.error=unsupported?`Unsupported SVG element <${unsupported[1]}>. Candidate saved at ${candidate}.`:`SVG is not well-formed, passive and self-contained. Candidate saved at ${candidate}.`;
+        if(reason)result.validationError=unsupported?`Unsupported SVG element <${unsupported[1]}>`:reason;
+        result.error=`${result.validationError?`SVG validation failed: ${result.validationError}`:'SVG validation could not complete'}. Candidate saved at ${candidate}.`;
         return result;
       }
       setStage('Rendering PNG in isolated container');

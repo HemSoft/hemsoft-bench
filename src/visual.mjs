@@ -8,12 +8,16 @@ export const VISUAL_TASK_ID='kangaroo-bike';
 const MAX_SVG=1024*1024;
 const SVG_CHECK=String.raw`
 import sys,re,xml.etree.ElementTree as ET
+sys.tracebacklimit=0
 p='/workspace/bike.svg'
 data=open(p,'rb').read(1048577)
 if not data or len(data)>1048576: raise ValueError('SVG must be 1 byte to 1 MiB')
 if re.search(rb'<!\s*(?:DOCTYPE|ENTITY)|<\?(?!xml\s)',data,re.I): raise ValueError('DTD, entities and processing instructions are forbidden')
 root=ET.fromstring(data)
 ns='{http://www.w3.org/2000/svg}'
+xlink_href='{http://www.w3.org/1999/xlink}href'
+def local_href(el):
+ return el.attrib.get('href',el.attrib.get(xlink_href,''))
 allowed={'svg','g','path','circle','ellipse','rect','line','polyline','polygon','text','tspan','defs','linearGradient','radialGradient','stop','clipPath','mask','pattern','style','title','desc','filter','feGaussianBlur','feDropShadow','use'}
 if root.tag!=ns+'svg': raise ValueError('Root must be a namespaced SVG')
 def passive_value(v,css=False):
@@ -37,10 +41,10 @@ while stack:
  if not el.tag.startswith(ns) or el.tag[len(ns):] not in allowed: raise ValueError('Unsupported SVG element: '+el.tag.rsplit('}',1)[-1])
  for k,v in el.attrib.items():
   name=k.split('}')[-1].lower()
-  if k.startswith('{') and not k.startswith('{http://www.w3.org/XML/1998/namespace}'):
+  if k.startswith('{') and k!=xlink_href and not k.startswith('{http://www.w3.org/XML/1998/namespace}'):
    raise ValueError('Foreign attribute namespace')
   if name=='href':
-   if el.tag!=ns+'use' or k!='href' or not re.fullmatch(r'#[A-Za-z_][A-Za-z0-9_.-]*',v): raise ValueError('Active content or external reference')
+   if el.tag!=ns+'use' or k not in ('href',xlink_href) or not re.fullmatch(r'#[A-Za-z_][A-Za-z0-9_.-]*',v): raise ValueError('Active content or external reference')
    uses.append((el,v[1:]));continue
   if name.startswith('on') or name in ('src','style'):
    raise ValueError('Active content or external reference')
@@ -54,7 +58,9 @@ def expanded(el,path,depth):
  marker=id(el)
  if marker in path: raise ValueError('Cyclic local SVG reference')
  path=path|{marker};total=1
- if el.tag==ns+'use': total+=expanded(ids[el.attrib['href'][1:]],path,depth+1)
+ if el.tag==ns+'use':
+  if not local_href(el): raise ValueError('Use elements require a local href')
+  total+=expanded(ids[local_href(el)[1:]],path,depth+1)
  for child in el: total+=expanded(child,path,depth+1)
  if total>5000: raise ValueError('SVG is too complex')
  return total

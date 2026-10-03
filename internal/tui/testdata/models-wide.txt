@@ -1,4 +1,4 @@
-  HEMSOFT BENCH                                        
+  HEMSOFT BENCH  v0.1.1                                
                                                        
   START A NEW RUN                                      
   Choose one model. Enter starts it immediately.       

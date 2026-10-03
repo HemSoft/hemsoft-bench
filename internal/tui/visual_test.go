@@ -18,7 +18,7 @@ func TestFullSuiteReportsCodeChecksAndVisualReviewSeparately(t *testing.T) {
 	j.Results = append(j.Results, bench.Result{Task: "kangaroo-bike", Status: "needs_visual_review", Artifact: &bench.VisualArtifact{File: "D:\\example\\.local\\results\\kimi-k3-bike.svg", Published: true}})
 	j.Status = "needs_visual_review"
 	text := m.runDetail(j)
-	for _, want := range []string{"Check pass rate: 100.0% (60/60 hidden checks)", "Coding tests passed: 1/1.", "SVG saved for human review; appearance ungraded.", "kimi-k3-bike.svg"} {
+	for _, want := range []string{"Check pass rate: 100.0% (60/60 hidden checks)", "Coding tests passed: 1/1.", "Visuals: 0/1 rated; 1 ready.", "kimi-k3-bike.svg"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("missing %q in %s", want, text)
 		}
@@ -217,7 +217,7 @@ func TestSavedHumanRatingStaysSeparateFromCodingScore(t *testing.T) {
 	j.Results = append(j.Results, bench.Result{ID: "picture", Task: "kangaroo-bike", Status: "needs_visual_review", HumanScore: &score, Artifact: &bench.VisualArtifact{File: "bike.svg", PNGFile: "bike.png", PNGPublicFile: "bike.png", Published: true}})
 	j.Status = "needs_visual_review"
 	detail := m.runDetail(j)
-	for _, text := range []string{"60/60 hidden checks", "Visual rating: 0/10", "PNG: bike.png", "1 open PNG with Windows"} {
+	for _, text := range []string{"60/60 hidden checks", "Visuals: 1/1 rated.", "PNG: bike.png", "1 open PNG with Windows"} {
 		if !strings.Contains(detail, text) {
 			t.Fatalf("missing %q", text)
 		}
@@ -225,8 +225,8 @@ func TestSavedHumanRatingStaysSeparateFromCodingScore(t *testing.T) {
 	if strings.Contains(detail, "needs_visual_review") || strings.Contains(detail, "SVG saved for human review; appearance ungraded.") {
 		t.Fatal("rated image still described as needing review")
 	}
-	if strings.Count(detail, good.Render("0/10")) != 3 {
-		t.Fatal("expected one green run status, one summary rating and one green task status")
+	if strings.Count(detail, good.Render("0/10")) != 2 {
+		t.Fatal("expected one green run status and one green task status without a duplicate rating")
 	}
 	if got := j.Status; got != "needs_visual_review" {
 		t.Fatal("display change must not rewrite the recorded status")
@@ -279,7 +279,7 @@ func TestVisualArtifactIsNeverScoredAsCodingPass(t *testing.T) {
 	j.Results = []bench.Result{{Task: "kangaroo-bike", Status: "needs_visual_review", Artifact: &bench.VisualArtifact{File: "D:\\example\\.local\\results\\kimi-k3-bike.svg", Published: true}}}
 	j.Status = "needs_visual_review"
 	text := m.runDetail(j)
-	for _, want := range []string{"Visual task: human review required; no automatic score.", "SVG saved for human review; appearance ungraded.", "kimi-k3-bike.svg"} {
+	for _, want := range []string{"Visual task: human review required; no automatic score.", "Visuals: 0/1 rated; 1 ready.", "kimi-k3-bike.svg"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("missing %q in %s", want, text)
 		}

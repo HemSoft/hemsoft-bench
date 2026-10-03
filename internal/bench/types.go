@@ -131,19 +131,20 @@ type PresentationArtifact struct {
 }
 
 type Result struct {
-	ID            string                 `json:"id"`
-	Task          string                 `json:"task"`
-	Status        string                 `json:"status"`
-	Grade         *Grade                 `json:"grade"`
-	Metrics       *Metrics               `json:"metrics"`
-	Elapsed       float64                `json:"elapsedSeconds"`
-	SelfTest      bool                   `json:"selfTest"`
-	Error         string                 `json:"error,omitempty"`
-	Path          string                 `json:"path"`
-	Recovery      *Recovery              `json:"recovery,omitempty"`
-	Artifact      *VisualArtifact        `json:"artifact,omitempty"`
-	Presentations []PresentationArtifact `json:"presentations,omitempty"`
-	HumanScore    *int                   `json:"humanScore,omitempty"`
+	ID              string                 `json:"id"`
+	Task            string                 `json:"task"`
+	Status          string                 `json:"status"`
+	Grade           *Grade                 `json:"grade"`
+	Metrics         *Metrics               `json:"metrics"`
+	Elapsed         float64                `json:"elapsedSeconds"`
+	SelfTest        bool                   `json:"selfTest"`
+	Error           string                 `json:"error,omitempty"`
+	ValidationError string                 `json:"validationError,omitempty"`
+	Path            string                 `json:"path"`
+	Recovery        *Recovery              `json:"recovery,omitempty"`
+	Artifact        *VisualArtifact        `json:"artifact,omitempty"`
+	Presentations   []PresentationArtifact `json:"presentations,omitempty"`
+	HumanScore      *int                   `json:"humanScore,omitempty"`
 }
 
 func (r Result) FailureMessage() string {

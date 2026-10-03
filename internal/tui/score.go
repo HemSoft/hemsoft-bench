@@ -18,11 +18,11 @@ func scoreSummary(j *bench.Job) []string {
 	}
 	complete := len(j.Results) == j.Template.Attempts() && len(j.Results) > 0
 	for _, r := range j.Results {
-		if r.Status == "passed" {
-			attempts++
-		}
 		if visualTask(r.Task) {
 			continue
+		}
+		if r.Status == "passed" {
+			attempts++
 		}
 		if r.Grade == nil || (r.Status != "passed" && r.Status != "failed") {
 			complete = false
@@ -46,20 +46,29 @@ func scoreSummary(j *bench.Job) []string {
 	if codeAttempts > 0 {
 		lines = append(lines, fmt.Sprintf("Coding tests passed: %d/%d.", attempts, codeAttempts))
 	}
-	for _, r := range j.Results {
-		if visualTask(r.Task) && (r.Artifact != nil || len(r.Presentations) > 0) {
-			if r.HumanScore != nil {
-				label := clean(r.Task) + " visual rating"
-				if r.Task == "kangaroo-bike" {
-					label = "Visual rating"
-				}
-				lines = append(lines, good.Render(fmt.Sprintf("%s: %d/10", label, *r.HumanScore)))
-			} else if r.Task == "kangaroo-bike" {
-				lines = append(lines, "SVG saved for human review; appearance ungraded.")
-			} else {
-				lines = append(lines, "World clock saved for human review; appearance ungraded.")
+	expectedVisuals := j.Template.Attempts() - codeAttempts
+	if expectedVisuals > 0 {
+		rated, ready, invalid := 0, 0, 0
+		for _, r := range j.Results {
+			if !visualTask(r.Task) {
+				continue
+			}
+			if _, ok := ratedTaskStatus(r); ok {
+				rated++
+			} else if r.Status == "needs_visual_review" {
+				ready++
+			} else if r.Status == "missing_or_invalid_submission" {
+				invalid++
 			}
 		}
+		visuals := fmt.Sprintf("Visuals: %d/%d rated", rated, expectedVisuals)
+		if ready > 0 {
+			visuals += fmt.Sprintf("; %d ready", ready)
+		}
+		if invalid > 0 {
+			visuals += fmt.Sprintf("; %d invalid", invalid)
+		}
+		lines = append(lines, visuals+".")
 	}
 	families := map[string]bool{}
 	for _, task := range j.Template.Tasks {

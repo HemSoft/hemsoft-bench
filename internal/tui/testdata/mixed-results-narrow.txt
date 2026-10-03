@@ -1,0 +1,26 @@
+  HEMSOFT BENCH  v0.1.1                                                         
+                                                                                
+  RUN RESULTS                                                                   
+  opencode-go / kimi-k3 / max                                                   
+  COMPLETED WITH FAILURES                                                       
+                                                                                
+  Check pass rate: 72.2% (52/72 hidden checks)                                  
+  Coding tests passed: 0/1.                                                     
+  Visuals: 0/2 rated; 1 ready; 1 invalid.                                       
+  Scope: 1 coding task; difficulty uncalibrated.                                
+  Total: 16m 00s | $3.0000 observed, incomplete                                 
+                                                                                
+  TASK DETAILS                                                                  
+  3 / 3 tests                                                                   
+    ██████████████ █████████████ █████████████                                  
+                                                                                
+  resilient-scheduler  failed                                                   
+    52/72 checks | 10m 00s | $1.2500 estimated                                  
+                                                                                
+  kangaroo-bike  invalid submission                                             
+    5m 00s | $1.2500 estimated                                                  
+    External or malformed SVG URL                                               
+                                                                                
+  world-clock  ready for review                                                 
+                                                                                
+  2 open HTML results  PgUp/PgDn scroll  d delete  Esc home  q exit             

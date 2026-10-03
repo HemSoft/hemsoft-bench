@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	lip "charm.land/lipgloss/v2"
+	hemsoftbench "github.com/HemSoft/hemsoft-bench"
 	"github.com/HemSoft/hemsoft-bench/internal/bench"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -591,6 +593,19 @@ func statusStyle(s string) lip.Style {
 		return danger
 	}
 }
+func statusLabel(s string) string {
+	switch s {
+	case "needs_visual_review":
+		return "ready for review"
+	case "missing_or_invalid_submission":
+		return "invalid submission"
+	default:
+		return clean(strings.ReplaceAll(s, "_", " "))
+	}
+}
+func artifactName(file string) string {
+	return clean(path.Base(strings.ReplaceAll(file, "\\", "/")))
+}
 func ratedTaskStatus(r bench.Result) (string, bool) {
 	if visualTask(r.Task) && r.Status == "needs_visual_review" && r.HumanScore != nil && *r.HumanScore >= 0 && *r.HumanScore <= 10 {
 		return fmt.Sprintf("%d/10", *r.HumanScore), true
@@ -713,7 +728,7 @@ func (m Model) historyView() string {
 		j := m.state.Jobs[len(m.state.Jobs)-1-i]
 		status, rated := ratedRunStatus(j)
 		if !rated {
-			status = strings.ToUpper(status)
+			status = strings.ToUpper(statusLabel(status))
 		}
 		name := clean(j.Model.Model + " / " + j.Model.Thinking)
 		label := name + "  " + status
@@ -752,9 +767,12 @@ func (m Model) runDetail(j *bench.Job) string {
 	}
 	status, rated := ratedRunStatus(j)
 	if !rated {
-		status = strings.ToUpper(status)
+		status = strings.ToUpper(statusLabel(status))
 	}
 	style := statusStyle(j.Status)
+	if terminal && j.Status == "failed" {
+		status = "COMPLETED WITH FAILURES"
+	}
 	if rated {
 		style = good
 	}
@@ -782,9 +800,15 @@ func (m Model) runDetail(j *bench.Job) string {
 	}
 	if terminal {
 		lines = append(lines, scoreSummary(j)...)
-		lines = append(lines, "")
-		lines = append(lines, accent.Render("COMPARE RECORDED RESULTS"), "Settings and retries may differ; not a ranking.")
-		lines = append(lines, m.comparison(j)...)
+		seconds := 0.0
+		for _, r := range j.Results {
+			seconds += r.Elapsed
+		}
+		lines = append(lines, "Total: "+duration(int(seconds))+" | "+jobCost(j))
+		if comparison := m.comparison(j); len(comparison) > 0 {
+			lines = append(lines, "", accent.Render("COMPARE RECORDED RESULTS"), "Settings and retries may differ; not a ranking.")
+			lines = append(lines, comparison...)
+		}
 		lines = append(lines, "", accent.Render("TASK DETAILS"))
 		lines = append(lines, testProgress(j, m.width)...)
 	}
@@ -792,20 +816,27 @@ func (m Model) runDetail(j *bench.Job) string {
 		lines = append(lines, "Completed tests:")
 	}
 	for _, r := range j.Results {
-		grade := "not graded"
+		stats := duration(int(r.Elapsed)) + " | " + resultCost(r)
 		if r.Grade != nil {
-			grade = fmt.Sprintf("%d/%d checks", r.Grade.Passed, r.Grade.Total)
+			stats = fmt.Sprintf("%d/%d checks | ", r.Grade.Passed, r.Grade.Total) + stats
+		} else if !visualTask(r.Task) {
+			stats = "not graded | " + stats
 		}
 		status, rated := ratedTaskStatus(r)
 		style := statusStyle(r.Status)
 		if rated {
 			style = good
+		} else {
+			status = statusLabel(status)
 		}
-		lines = append(lines, "", clean(r.Task)+"  "+style.Render(status), "  "+grade+" | "+duration(int(r.Elapsed)), "  "+resultCost(r))
+		lines = append(lines, "", clean(r.Task)+"  "+style.Render(status), "  "+stats)
 		if r.Artifact != nil {
-			lines = append(lines, "  SVG for human review: "+clean(r.Artifact.File))
+			files := "  SVG: " + artifactName(r.Artifact.File)
 			if r.Artifact.PNGFile != "" {
-				lines = append(lines, "  PNG: "+clean(r.Artifact.PNGFile))
+				files += " | PNG: " + artifactName(r.Artifact.PNGFile)
+			}
+			lines = append(lines, files)
+			if r.Artifact.PNGFile != "" {
 				if r.Artifact.PNGPublicFile != "" || r.Artifact.PNGOwnedFile != "" {
 					lines = append(lines, selected.Render("  > 1 open PNG with Windows, then rate 0-10"))
 				}
@@ -815,15 +846,31 @@ func (m Model) runDetail(j *bench.Job) string {
 			}
 		}
 		if len(r.Presentations) > 0 {
-			lines = append(lines, "  Live webpage in the HTML results report.", selected.Render("  > 2 open HTML results, then rate the clock 0-10"))
+			lines = append(lines, selected.Render("  > 2 open HTML results, then rate the clock 0-10"))
 		}
 		if r.HumanScore != nil && !rated {
 			lines = append(lines, fmt.Sprintf("  Your visual rating: %d/10", *r.HumanScore))
 		}
 		if r.Metrics != nil && r.Metrics.RetryCount > 0 {
-			lines = append(lines, fmt.Sprintf("  Retries scheduled: %d; recovered interruptions: %d.", r.Metrics.RetryCount, len(r.Metrics.RecoveredProviderErrors)))
+			lines = append(lines, fmt.Sprintf("  Provider retries: %d; recovered: %d.", r.Metrics.RetryCount, len(r.Metrics.RecoveredProviderErrors)))
 		}
-		if cause := r.FailureMessage(); cause != "" && cause != j.Error {
+		cause := r.FailureMessage()
+		if r.ValidationError != "" {
+			cause = r.ValidationError
+		} else if visualTask(r.Task) && r.Status == "missing_or_invalid_submission" {
+			// Older records embed a long candidate path in the error. The run's
+			// artifact directory is already shown once below; keep any reason.
+			name := "bike.svg."
+			if r.Task == "world-clock" {
+				name = "world-clock.html."
+			}
+			if before, candidate, ok := strings.Cut(cause, "Candidate saved at "); ok {
+				if _, after, found := strings.Cut(candidate, name); found {
+					cause = strings.TrimSpace(before + after)
+				}
+			}
+		}
+		if cause != "" && cause != j.Error {
 			lines = append(lines, "  "+clean(cause))
 		}
 		if recovery := r.Recovery; recovery != nil {
@@ -882,6 +929,9 @@ func (m Model) comparison(current *bench.Job) []string {
 			others++
 		}
 	}
+	if others == 0 {
+		return nil
+	}
 	for i, j := range jobs {
 		passed, checks, total, retries := 0, 0, 0, 0
 		seconds := 0.0
@@ -931,23 +981,22 @@ func (m Model) comparison(current *bench.Job) []string {
 		style := statusStyle(j.Status)
 		if rated {
 			style = good
+		} else {
+			status = statusLabel(status)
 		}
 		rows = append(rows, "", label+"  "+style.Render(status), fmt.Sprintf("  %s | %s | %s", attemptText, grade, duration(int(seconds))), "  "+runDate(j)+" | "+jobCost(j))
 		if retries > 0 {
-			rows = append(rows, fmt.Sprintf("  Retries scheduled: %d; incomplete usage/cost.", retries))
+			rows = append(rows, fmt.Sprintf("  Provider retries: %d.", retries))
 		}
 	}
 	if others > 10 {
 		rows = append(rows, "", "Showing the 10 most recent other runs. All runs remain in history.")
 	}
-	if others == 0 {
-		rows = append(rows, "", "No other results yet. Future runs will appear here.")
-	}
 	return rows
 }
 func (m Model) View() tea.View {
 	if m.width < 55 || m.height < 18 {
-		v := tea.NewView("HemSoft Bench\n\nResize to at least 55 columns x 18 rows.\nq exits; background runs continue.")
+		v := tea.NewView("HemSoft Bench v" + hemsoftbench.Version + "\n\nResize to at least 55 columns x 18 rows.\nq exits; background runs continue.")
 		v.AltScreen = true
 		return v
 	}
@@ -1022,7 +1071,7 @@ func (m Model) View() tea.View {
 	for i := range lines {
 		lines[i] = fit(lines[i], m.width-4)
 	}
-	content := accent.Render("HEMSOFT BENCH") + "\n\n" + lip.NewStyle().Height(limit).Render(strings.Join(lines, "\n")) + "\n" + fit(note, m.width-4) + "\n" + muted.Render(fit(footer, m.width-4))
+	content := accent.Render("HEMSOFT BENCH") + muted.Render("  v"+hemsoftbench.Version) + "\n\n" + lip.NewStyle().Height(limit).Render(strings.Join(lines, "\n")) + "\n" + fit(note, m.width-4) + "\n" + muted.Render(fit(footer, m.width-4))
 	v := tea.NewView(lip.NewStyle().Padding(0, 2).Render(content))
 	v.AltScreen = true
 	v.WindowTitle = "HemSoft Bench"
